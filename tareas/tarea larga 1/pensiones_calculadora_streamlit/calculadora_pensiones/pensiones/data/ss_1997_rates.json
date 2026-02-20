@@ -1,0 +1,112 @@
+{
+  "note": "Rellena con tasas IMSS + INFONAVIT y reglas de SBC/UMA. Estructura sugerida por seguro y aportante.",
+  "year": 2026,
+  "params": {
+    "uma_daily": 117.31,
+    "sbc_min_uma": 1.0,
+    "sbc_max_uma": 25.0
+  },
+  "insurances": [
+    {
+      "name": "Enfermedades y Maternidad",
+      "components": [
+        {
+          "component": "Cuota fija",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "UMA"
+        },
+        {
+          "component": "Excedente 3 UMA",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC_excess_3UMA"
+        },
+        {
+          "component": "Prestaciones en dinero",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        },
+        {
+          "component": "Gastos médicos pensionados",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        }
+      ]
+    },
+    {
+      "name": "Invalidez y Vida",
+      "components": [
+        {
+          "component": "IV",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        }
+      ]
+    },
+    {
+      "name": "Retiro, Cesantía y Vejez",
+      "components": [
+        {
+          "component": "Retiro",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        },
+        {
+          "component": "Cesantía y Vejez",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        }
+      ]
+    },
+    {
+      "name": "Riesgos de Trabajo",
+      "components": [
+        {
+          "component": "RT",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        }
+      ]
+    },
+    {
+      "name": "Guarderías y Prestaciones Sociales",
+      "components": [
+        {
+          "component": "GPS",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        }
+      ]
+    },
+    {
+      "name": "INFONAVIT",
+      "components": [
+        {
+          "component": "INFONAVIT",
+          "employer_rate": 0.0,
+          "employee_rate": 0.0,
+          "gov_rate": 0.0,
+          "base": "SBC"
+        }
+      ]
+    }
+  ],
+  "source": "LSS 1997 + tablas de tasas (pega aquí tu referencia)"
+}

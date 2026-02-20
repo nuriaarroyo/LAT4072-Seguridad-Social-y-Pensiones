@@ -1,0 +1,10 @@
+{
+  "note": "Copia aquí los supuestos del Excel 'Calculadora de Retiro LSS 1997.xlsx' visto en clase.",
+  "params": {
+    "retirement_age_default": 65,
+    "inflation_annual": 0.0,
+    "real_return_annual": 0.0,
+    "wage_growth_annual": 0.0,
+    "density_of_contribution": 1.0
+  }
+}
