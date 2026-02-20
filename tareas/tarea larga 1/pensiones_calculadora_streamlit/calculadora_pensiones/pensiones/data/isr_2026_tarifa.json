@@ -1,0 +1,13 @@
+{
+  "year": 2026,
+  "note": "Rellena con la tarifa mensual ISR 2026 (límites inferior/superior, cuota fija, porcentaje excedente).",
+  "brackets": [
+    {
+      "lower": 0.01,
+      "upper": null,
+      "fixed_quota": 0.0,
+      "rate": 0.0
+    }
+  ],
+  "source": "SAT - Tarifa ISR mensual 2026 (pega aquí tu tabla)"
+}

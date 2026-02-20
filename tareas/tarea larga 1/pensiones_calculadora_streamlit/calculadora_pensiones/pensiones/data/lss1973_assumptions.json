@@ -1,0 +1,7 @@
+{
+  "note": "Copia aquí los supuestos del Excel 'Calculo Pensión Cesantía Edad Avanzada Vejez LSS 1973.xlsx' visto en clase.",
+  "params": {
+    "min_retirement_age": 60,
+    "max_retirement_age": 65
+  }
+}
