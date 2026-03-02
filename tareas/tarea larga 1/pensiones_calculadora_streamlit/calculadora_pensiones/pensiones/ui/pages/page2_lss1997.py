@@ -38,13 +38,13 @@ def render():
                 with c1:
                     nombre = st.text_input("Nombre")
                     age_now = st.number_input(
-                        "Edad actual x", min_value=15, max_value=80, value=30, step=1
+                        "Edad actual x", min_value=15, max_value=100, value=30, step=1
                     )
                 with c2:
                     exp_retirement_age = st.number_input(
                         "Edad esperada de jubilación",
-                        min_value=50,
-                        max_value=80,
+                        min_value=16,
+                        max_value=100,
                         value=65,
                         step=1,
                     )
@@ -55,10 +55,6 @@ def render():
             with st.expander("👨‍👩‍👧 Dependientes económicos", expanded=False):
                 c1, c2 = st.columns(2)
                 with c1:
-                    dependientes = st.number_input(
-                        "Número de dependientes", min_value=0, value=0, step=1
-                    )
-                with c2:
                     partner = st.selectbox(
                         "¿Tiene pareja con derecho a pensión por viudez?",
                         options=["No", "Sí"],
@@ -73,12 +69,17 @@ def render():
                         gender_partner = st.selectbox(
                             "Género pareja", options=["Masculino", "Femenino"], index=1
                         )
+                with c2:
+                    dependientes = st.number_input(
+                        "Número de dependientes", min_value=0, value=0, step=1
+                    )
+                    
 
             with st.expander("💼 Salario e historial", expanded=True):
                 c1, c2 = st.columns(2)
                 with c1:
                     salary_monthly = st.slider(
-                        "Salario mensual y [MXN]",
+                        "Salario mensual y [MXN] SBC",
                         min_value=0.0,
                         max_value=80000.0,
                         value=20000.0,
@@ -92,11 +93,12 @@ def render():
                         step=1,
                     )
                 with c2:
-                    crecimiento = (
-                        st.number_input(
-                            "Crecimiento salarial anual (%)", value=0.0, step=0.5
-                        )
-                        / 100
+                    vol_actual = st.slider(
+                        "Tasa de contribución voluntaria actual",
+                        min_value=0.0,
+                        max_value=0.50,
+                        value=0.0,
+                        step=0.01,
                     )
 
             with st.expander("💰 Aportaciones & otros", expanded=False):
