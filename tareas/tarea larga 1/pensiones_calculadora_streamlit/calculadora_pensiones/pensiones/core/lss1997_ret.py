@@ -35,7 +35,7 @@ def factibilidad_de_retiro(age_now: int, exp_retirement_age: int, weeks_now: int
 
 def uma_m() -> float:
     return float(UNITS["uma_monthly"])
-
+ 
 
 def salario_maximo_cotizable() -> float:
     """Salario máximo cotizable mensual = 25 UMA (asumiendo tope 25)."""
