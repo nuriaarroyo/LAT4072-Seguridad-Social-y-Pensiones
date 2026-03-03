@@ -370,23 +370,41 @@ def replacement_rate_lss1997(
     ok = factibilidad_de_retiro(int(age_now), exp_ret_age, weeks_now)
 
     # (1) SCI al retiro
+    saldo_actual = local_ASS.get("saldo_actual", None)
+    sci0 = sci0_from_inputs_simple(
+        saldo_actual=saldo_actual,
+        weeks_now=weeks_now,
+        salary_monthly=salary_monthly,
+        annual_return=annual_return,
+    )
+
     sci = monto_acumulado_al_retiro(
-        age_now=int(age_now),
+        age_now=age_now,
         exp_retirement_age=exp_ret_age,
-        salary_monthly=float(salary_monthly),
-        voluntary_rate=float(voluntary_rate),
+        salary_monthly=salary_monthly,
+        voluntary_rate=voluntary_rate,
         tasa_retorno_anual=annual_return,
+        saldo_inicial=float(sci0),
     )
 
     # (2)-(3) Pensión actuarial desde SCI y ä̈_x^(12)
     pension_R = pension_mensual_desde_sci(sci=float(sci), age_ret=exp_ret_age, gender=gender)
 
     # (4) PG si aplica
+    # dentro de replacement_rate_lss1997, ya con local_ASS listo
+    pg_assumptions = dict(local_ASS)  # copia
+
+    # si no viene pg_table en overrides, úsala desde el JSON cargado en el core
+    if "pg_table" not in pg_assumptions:
+        # AJUSTA la llave al nombre real dentro de tu JSON
+        pg_assumptions["pg_table"] = TABLES.get("pension_garantizada_3d")  # ejemplo
+
+
     pg = pension_garantizada_mensual(
     age_ret=exp_ret_age,
     weeks_at_ret=int(weeks_at_ret),
     sbc_m=float(sbc_m),
-    assumptions=assumptions,   # <-- ESTA LÍNEA 
+    assumptions=pg_assumptions,
     ) if ok else 0.0
 
     pension = float(max(pension_R, pg)) if ok else 0.0

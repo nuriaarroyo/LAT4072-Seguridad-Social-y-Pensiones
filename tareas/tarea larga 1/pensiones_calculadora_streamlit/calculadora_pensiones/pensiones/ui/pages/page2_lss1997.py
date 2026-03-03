@@ -52,7 +52,7 @@ def render():
                         "Género", options=["Masculino", "Femenino"], index=0
                     )
 
-            with st.expander("👨‍👩‍👧 Dependientes económicos", expanded=False):
+            """with st.expander("👨‍👩‍👧 Dependientes económicos", expanded=False):
                 c1, c2 = st.columns(2)
                 with c1:
                     partner = st.selectbox(
@@ -75,24 +75,18 @@ def render():
                     dependientes = st.number_input(
                         "Número de dependientes", min_value=0, value=0, step=1
                     )
-
+"""
             with st.expander("💼 Salario e historial", expanded=True):
                 c1, c2 = st.columns(2)
                 with c1:
                     salary_monthly = st.slider(
                         "Salario mensual [MXN] (SBC)",
                         min_value=0.0,
-                        max_value=80000.0,
+                        max_value= 100000.0,
                         value=20000.0,
                         step=100.0,
                     )
-                    weeks_now = st.number_input(
-                        "Semanas cotizadas hasta ahora",
-                        min_value=0,
-                        max_value=3000,
-                        value=500,
-                        step=1,
-                    )
+                    
                 with c2:
                     vol_actual = st.slider(
                         "Tasa de contribución voluntaria actual",
@@ -102,16 +96,15 @@ def render():
                         step=0.01,
                     )
 
-            with st.expander("📈 Rendimiento y saldo", expanded=False):
+            with st.expander("📈 Semanas y saldo", expanded=False):
                 c1, c2 = st.columns(2)
                 with c1:
-                    annual_return = st.slider(
-                        "Rendimiento anual esperado (nominal)",
-                        min_value=0.00,
-                        max_value=0.20,
-                        value=0.05,
-                        step=0.005,
-                        format="%.3f",
+                    weeks_now = st.number_input(
+                        "Semanas cotizadas hasta ahora",
+                        min_value=0,
+                        max_value=3000,
+                        value=0,
+                        step=50,
                     )
                 with c2:
                     saldo_actual = st.number_input(
@@ -168,9 +161,9 @@ def render():
         overrides = {
             "default_retirement_age": int(exp_retirement_age),
             "default_weeks_now": int(weeks_now),
-            "default_annual_return": float(annual_return),
+            #"default_annual_return": float(annual_return),
             "default_gender": gender_core,
-            "pg_mensual": 5000.0,  # TODO: cambia a input/tabla real cuando la conectes
+            #"pg_mensual": 5000.0,  # TODO: cambia a input/tabla real cuando la conectes
         }
 
         if float(saldo_actual) > 0.0:
@@ -301,13 +294,14 @@ def render():
                     "exp_retirement_age": int(exp_retirement_age),
                     "gender_ui": gender_ui,
                     "gender_core": gender_core,
-                    "dependientes": int(dependientes),
+                    """"dependientes": int(dependientes),
                     "partner": partner,
                     "partner_age": partner_age,
-                    "gender_partner": gender_partner,
+                    "gender_partner": gender_partner,"""
                     "salary_monthly": float(salary_monthly),
                     "weeks_now": int(weeks_now),
-                    "annual_return": float(annual_return),
+                    # quiero llamarlo del jsson 
+                    #"annual_return": float(annual_return),
                     "saldo_actual": float(saldo_actual),
                     "target_rr": float(target_rr),
                     "v_min": float(v_min),
