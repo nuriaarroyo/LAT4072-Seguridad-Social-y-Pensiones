@@ -1,0 +1,35 @@
+Identifier: MEX-INEGI.ESD5.03-EDR-2024
+
+Title: Estadísticas de Defunciones Registradas 2024
+
+Description: INEGI. Estadísticas de Defunciones Registradas 2024. SNIEG. Información de Interés Nacional
+
+Las estadísticas de defunciones registradas contribuyen a la tarea institucional de proporcionar información estadística de interés nacional, a efecto de coadyuvar al desarrollo nacional.
+
+El objetivo de esta estadística es generar y difundir la información sobre el fenómeno de la mortalidad en el país, que permite conocer y comparar el volumen, tendencia y características de la mortalidad en los diferentes ámbitos geográficos del país, conformando un insumo para el análisis y evaluación de acciones dirigidas a la elaboración de programas de salud pública.
+
+La información proporcionada por el INEGI brinda un panorama sobre dicho fenómeno demográfico a nivel nacional, entidad federativa, municipio y localidad referidos a tres ámbitos: lugar de registro, lugar de ocurrencia, lugar de residencia habitual de la (del) fallecida(o) y entidad de ocurrencia de la lesión.
+
+En la generación de las estadísticas de defunciones registradas se han adoptado recomendaciones internacionales emitidas por la Organización de las Naciones Unidas (ONU), quien dicta las normas, conceptos y procedimientos que estandarizan las actividades de este rubro en los diferentes países; así como, por la Organización Mundial de la Salud (OMS) para el uso de la Clasificación Estadística Internacional de Enfermedades y Problemas relacionados con la Salud (CIE). Por otro lado, dentro de las leyes nacionales aplicables en la generación de información se encuentra la Ley General de Salud (LGS) que reglamenta el derecho a la protección de la salud que tiene toda persona; establece las bases y modalidades para el acceso a los servicios de salud y la concurrencia de la federación y las entidades federativas en materia de salubridad general.
+
+Modified: 2025-11-10
+
+Publisher: Instituto Nacional de Estadística y Geografía, INEGI
+
+Mbox: atencion.usuarios@inegi.org.mx
+
+License: https://www.inegi.org.mx/inegi/terminos.html
+
+DataDictionary: https://www.inegi.org.mx/rnm/index.php/catalog/1140/data-dictionary
+
+Keyword: "deceso", "defunción", "enfermedad", "fallecimiento", "homicidio", "institución", "mortalidad", "muerte", "población", "registro", "suicidio"
+
+ContactPoint: Mtro. J. Armando Aguiar Rodríguez, 800 111 4634
+
+Temporal: 2024-01-01-2024-12-31
+
+Spatial: Estados Unidos Mexicanos
+
+AccrualPeriodicity: Anualmente
+
+Distribution: https://www.inegi.org.mx/programas/edr/

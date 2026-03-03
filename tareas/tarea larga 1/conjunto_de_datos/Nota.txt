@@ -1,0 +1,2 @@
+NOTA:
+Se recomienda importar el archivo en alguna aplicación de análisis estadístico, por ejemplo, SPSS o en aplicaciones genéricas capaces de cargar archivos en formato CSV con más de 1,000,000 de registros. Al realizar la importación considere para cada variable el tipo de dato y la longitud que se describen en el diccionario de datos.
