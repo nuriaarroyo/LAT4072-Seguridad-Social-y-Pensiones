@@ -163,7 +163,7 @@ def render():
             "default_weeks_now": int(weeks_now),
             #"default_annual_return": float(annual_return),
             "default_gender": gender_core,
-            #"pg_mensual": 5000.0,  # TODO: cambia a input/tabla real cuando la conectes
+            "pg_mensual": 5000.0,  # TODO: cambia a input/tabla real cuando la conectes
         }
 
         if float(saldo_actual) > 0.0:
