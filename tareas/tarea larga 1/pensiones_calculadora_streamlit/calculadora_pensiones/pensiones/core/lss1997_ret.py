@@ -121,7 +121,7 @@ def aportacion_voluntaria(sbc_mensual: float, voluntary_rate: float) -> float:
 
 # =============================================================================
 # Proyección SCI (saldo de cuenta individual) al retiro
-# =============================================================================
+# ============================================================================
 def saldo_inicial_aprox_desde_semanas(
     weeks_now: int,
     salary_monthly: float,
