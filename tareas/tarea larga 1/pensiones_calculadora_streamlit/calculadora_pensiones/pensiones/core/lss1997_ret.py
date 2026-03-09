@@ -191,11 +191,12 @@ def saldo_inicial_aprox_desde_semanas(
 
     sbc_m = salario_de_cotizacion(float(salary_monthly))
     c_obl = aportacion_obligatoria(sbc_m, int(year_now))
+    jm = (1.0 + float(annual_return)) ** (1.0 / 12.0) - 1.0
     
 
     sci0 = 0.0
     for _ in range(months_past):
-        sci0 = (sci0 + c_obl) 
+        sci0 = (sci0 + c_obl) * (1.0 + jm)
 
     return float(sci0)
 
@@ -224,11 +225,11 @@ def monto_acumulado_al_retiro(
     c_vol = aportacion_voluntaria(sbc_m, float(voluntary_rate))
     contrib_m = aportaciones_totales_mensuales(c_obl, c_vol)
 
-    
+    jm = (1.0 + float(tasa_retorno_anual)) ** (1.0 / 12.0) - 1.0
 
     sci = float(saldo_inicial)
     for _ in range(T):
-        sci = (sci + contrib_m) 
+        sci = (sci + contrib_m) * (1.0 + jm)
 
     return float(sci)
 
