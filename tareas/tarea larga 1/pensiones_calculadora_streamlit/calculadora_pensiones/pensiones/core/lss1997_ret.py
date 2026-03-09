@@ -196,7 +196,7 @@ def saldo_inicial_aprox_desde_semanas(
 
     sci0 = 0.0
     for _ in range(months_past):
-        sci0 = (sci0 + c_obl) * (1.0 + jm)
+        sci0 = (sci0 + c_obl) 
 
     return float(sci0)
 
@@ -229,7 +229,7 @@ def monto_acumulado_al_retiro(
 
     sci = float(saldo_inicial)
     for _ in range(T):
-        sci = (sci + contrib_m)  * (1.0 + jm)
+        sci = (sci + contrib_m)  
 
     return float(sci)
 
