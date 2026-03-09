@@ -13,7 +13,6 @@ from pensiones.core.pension_garantizada import pension_garantizada_desde_tabla
 # =============================================================================
 # Carga de supuestos
 # =============================================================================
-
 DATA_PATH = Path(__file__).resolve().parents[1] / "data"
 P = load_json(DATA_PATH / "lss1997_assumptions.json")
 
@@ -21,8 +20,10 @@ ASS: Dict[str, Any] = P["assumptions"]
 UNITS: Dict[str, Any] = P.get("units", {})
 ELIG: Dict[str, Any] = P["eligibility"]
 RATES: Dict[str, Any] = P.get("contribution_rates_base", {})
-TABLES: Dict[str, Any] = P["tables"]
 
+TABLES: Dict[str, Any] = P.get("tables", {}).copy()
+TABLES["pg_weeks_thresholds_by_year"] = P["pg_weeks_thresholds_by_year"]
+TABLES["pension_garantizada"] = P["pension_garantizada"]
 
 
 
@@ -348,7 +349,7 @@ def replacement_rate_lss1997(
     if assumptions:
         local_ASS.update(assumptions)
 
-    exp_ret_age = int(local_ASS.get("default_retirement_age", 65))
+    exp_ret_age = int(local_ASS.get("retirement_age_default", 65))
     weeks_now = int(local_ASS.get("default_weeks_now", 0))
     annual_return = float(
         local_ASS.get("default_annual_return", local_ASS.get("tasa_retorno_anual", 0.05))
