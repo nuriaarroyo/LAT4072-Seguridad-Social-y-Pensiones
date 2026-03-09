@@ -18,7 +18,7 @@ DIAS_ANO = 365
 # El ÚLTIMO renglón se aplica para cualquier cociente ≥ 4.75 (según tu comentario).
 TABLA_LSS1973: List[Tuple[float, float, float]] = [
     (1.00,  1.5000, 0.0000),
-    (1.25,  0.4300, 0.0111),
+    (1.25,  0.4300, 0.0111), 
     (1.50,  0.4000, 0.0111),
     (1.75,  0.4000, 0.0111),
     (2.00,  0.4000, 0.0149),
