@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 
 from pensiones.utils.io import load_json
-from pensiones.core.pension_garantizada import pension_garantizada_mensual
+from pensiones.core.pension_garantizada import pension_garantizada_desde_tabla
+
 
 # =============================================================================
 # Carga de supuestos
@@ -400,12 +401,13 @@ def replacement_rate_lss1997(
         pg_assumptions["pg_table"] = TABLES.get("pension_garantizada_3d")  # ejemplo
 
 
-    pg = pension_garantizada_mensual(
-    age_ret=exp_ret_age,
-    weeks_at_ret=int(weeks_at_ret),
-    sbc_m=float(sbc_m),
-    assumptions=pg_assumptions,
-    ) if ok else 0.0
+    pg = pension_garantizada_desde_tabla(
+    year_ret=year_ret,
+    age_ret=age_ret,
+    weeks_at_ret=weeks_at_ret,
+    salario_uma=salario_uma,
+    tables=assumptions["tables"],
+    )
 
     pension = float(max(pension_R, pg)) if ok else 0.0
 
