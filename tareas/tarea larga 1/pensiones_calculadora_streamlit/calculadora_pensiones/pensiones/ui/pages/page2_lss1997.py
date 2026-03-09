@@ -12,6 +12,7 @@ from pensiones.core.lss1997_ret import (
 )
 
 
+
 def render():
     st.header("II) LSS 1997 — Tasa de reemplazo por cesantía en edad avanzada y vejez")
 
@@ -112,6 +113,13 @@ def render():
                         min_value=0.0,
                         value=0.0,
                         step=1000.0,
+                    )
+                    year_now = st.number_input(
+                        "Año actual",
+                        min_value=2021,
+                        max_value=2100,
+                        value=2026,
+                        step=1,
                     )
 
                 st.caption(
