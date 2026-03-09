@@ -229,7 +229,7 @@ def monto_acumulado_al_retiro(
 
     sci = float(saldo_inicial)
     for _ in range(T):
-        sci = (sci + contrib_m) 
+        sci = (sci + contrib_m)  * (1.0 + jm)
 
     return float(sci)
 
