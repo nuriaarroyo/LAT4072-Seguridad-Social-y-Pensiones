@@ -113,7 +113,7 @@ siguiendo los 13 pasos del cálculo (misma lógica que tu Excel).
         uma_diaria=float(uma_diaria),
         include_existing=bool(include_existing),
     )
-
+    # VIVA LA VECTORIZACIÓN
     best = df.loc[df["Tasa de Reemplazo"].idxmax()]
     worst = df.loc[df["Tasa de Reemplazo"].idxmin()]
 
