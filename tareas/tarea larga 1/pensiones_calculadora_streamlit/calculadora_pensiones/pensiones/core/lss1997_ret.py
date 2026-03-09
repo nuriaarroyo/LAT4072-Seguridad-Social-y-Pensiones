@@ -174,14 +174,12 @@ def aportacion_voluntaria(sbc_mensual: float, voluntary_rate: float) -> float:
 def saldo_inicial_aprox_desde_semanas(
     weeks_now: int,
     salary_monthly: float,
-    annual_return: float,
     year_now: int,
 ) -> float:
     """
-    Aproximación simple del saldo inicial:
-    - convierte semanas a meses pasados
-    - asume SBC constante
-    - aporta tasa obligatoria constante del año actual
+    Aproximación conservadora del saldo inicial:
+    semanas -> meses cotizados aproximados
+    saldo inicial ~ meses * aportación obligatoria actual
     """
     if int(weeks_now) <= 0:
         return 0.0
@@ -191,13 +189,8 @@ def saldo_inicial_aprox_desde_semanas(
 
     sbc_m = salario_de_cotizacion(float(salary_monthly))
     c_obl = aportacion_obligatoria(sbc_m, int(year_now))
-    j_m = float(annual_return) / 12.0
 
-    sci0 = 0.0
-    for _ in range(months_past):
-        sci0 = (sci0 + c_obl) * (1.0 + j_m)
-
-    return float(sci0)
+    return float(months_past * c_obl)
 
 
 def monto_acumulado_al_retiro(
