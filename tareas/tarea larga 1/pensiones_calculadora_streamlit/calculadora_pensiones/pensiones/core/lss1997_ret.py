@@ -268,14 +268,6 @@ def pension_mensual_desde_sci(sci: float, age_ret: int, gender: Any) -> float:
 
 def pg_year_from_inputs(year_now: int, age_now: int, age_ret: int) -> int:
     """
-    Año efectivo para tabla de pensión garantizada.
-    La transición aplica hasta 2030; después se usa 2030.
-    """
-    year_ret = int(year_now) + (int(age_ret) - int(age_now))
-    return max(2021, min(year_ret, 2030))
-
-def pg_year_from_inputs(year_now: int, age_now: int, age_ret: int) -> int:
-    """
     Año efectivo para la tabla de PG.
     La tabla transitoria llega hasta 2030; después se usa 2030.
     """
@@ -439,7 +431,6 @@ def replacement_rate_lss1997(
         "gender_used": _sex_key(gender),
     }
 
-
 def solve_voluntary_rate_for_target(
     age_now: int,
     salary_monthly: float,
@@ -538,3 +529,21 @@ def solve_voluntary_rate_for_target(
         "iters": int(max_iter),
         "status": "max_iter",
     }
+
+
+def rr_curve(
+    age_now: int,
+    salary_monthly: float,
+    voluntary_rates: np.ndarray,
+    assumptions: Optional[Dict[str, Any]] = None,   # <-- NUEVO
+) -> pd.DataFrame:
+    rows = []
+    for v in voluntary_rates:
+        out = replacement_rate_lss1997(
+            int(age_now),
+            float(salary_monthly),
+            float(v),
+            assumptions=assumptions,               # <-- PASA assumptions
+        )
+        rows.append({"voluntary_rate": float(v), "replacement_rate": out["replacement_rate"]})
+    return pd.DataFrame(rows)

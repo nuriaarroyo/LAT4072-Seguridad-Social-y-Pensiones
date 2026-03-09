@@ -135,6 +135,7 @@ def render():
 
             submitted = st.form_submit_button("Calcular")
 
+    
     # =========================
     # RESULTADOS (col2)
     # =========================
@@ -163,6 +164,7 @@ def render():
             "default_weeks_now": int(weeks_now),
             #"default_annual_return": float(annual_return),
             "default_gender": gender_core,
+            "year_now": int(year_now),
             "pg_mensual": 5000.0,  # TODO: cambia a input/tabla real cuando la conectes
         }
 
