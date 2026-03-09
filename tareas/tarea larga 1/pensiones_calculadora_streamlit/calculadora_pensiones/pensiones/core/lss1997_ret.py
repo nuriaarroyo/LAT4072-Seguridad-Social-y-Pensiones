@@ -10,7 +10,6 @@ import pandas as pd
 from pensiones.utils.io import load_json
 from pensiones.core.pension_garantizada import pension_garantizada_desde_tabla
 
-
 # =============================================================================
 # Carga de supuestos
 # =============================================================================
@@ -23,6 +22,8 @@ UNITS: Dict[str, Any] = P.get("units", {})
 ELIG: Dict[str, Any] = P["eligibility"]
 RATES: Dict[str, Any] = P.get("contribution_rates_base", {})
 TABLES: Dict[str, Any] = P["tables"]
+
+
 
 
 # =============================================================================
@@ -206,6 +207,8 @@ def sci0_from_inputs_simple(
     return 0.0
 
 
+
+
 # =============================================================================
 # Conversión SCI -> pensión mensual (actuarial desde tabla qx por género)
 # =============================================================================
@@ -233,92 +236,96 @@ def _sex_key(gender: Any) -> str:
     return "male"
 
 
-def _qx(age: int, gender: Any) -> float:
-    """
-    qx anual desde JSON:
-      TABLES["mortality_qx_2023"]["male"][str(edad)]
-      TABLES["mortality_qx_2023"]["female"][str(edad)]
-    """
-    tab = TABLES.get("mortality_qx_2023")
-    if tab is None:
-        raise KeyError("Falta TABLES['mortality_qx_2023'] en el JSON (tabla qx por edad y género).")
 
+
+def life_exp(age: int, gender: Any, age_ret: int) -> float:
+    """https://www.inegi.org.mx/app/tabulados/interactivos/?pxq=Mortalidad_Mortalidad_09_db78b87b-1e13-46d9-9adf-9c29fe345276"""
     sex = _sex_key(gender)
-    values = tab.get(sex)
-    if not isinstance(values, dict):
-        raise KeyError(f"TABLES['mortality_qx_2023']['{sex}'] no existe o no es dict.")
-
-    k = str(int(age))
-    if k not in values:
-        raise KeyError(f"No hay qx para edad {age} en mortality_qx_2023['{sex}'].")
-
-    q = float(values[k])
-    # clamp por seguridad
-    return float(min(max(q, 0.0), 1.0))
-
-
-def _annuity_factor_monthly(exp_ret_age: int, gender: Any) -> float:
-    """
-    Factor actuarial mensual tipo ä̈_x^(12) (renta MENSUAL ANTICIPADA),
-    calculado desde:
-      - qx anual por edad y género (mortalidad_qx_2023)
-      - tasa técnica anual i = ASS["tasa_tecnica"]
-
-    === ECUACIÓN PRESENTACIÓN ===
-      ä̈_x^(12) = sum_{k>=0} v_m^k * {}_k p_x,
-      con v_m = (1+i)^(-1/12)
-
-    Implementación:
-      - Aproxima supervivencia mensual en edad a:
-          p_m(age) = (1 - qx(age))^(1/12)
-      - Recorre meses hasta omega=110 (tu tabla llega a 110).
-    """
-    i = float(ASS["tasa_tecnica"])
-    v_m = (1.0 + i) ** (-1.0 / 12.0)
-
-    x = int(exp_ret_age)
-    omega = 110
-
-    # si ya estás en omega, solo pago inmediato (ant.)
-    if x >= omega:
-        return 1.0
-
-    pv = 0.0
-    p_surv = 1.0  # {}_0 p_x
-
-    # k=0 (pago anticipado inmediato)
-    pv += 1.0
-
-    months = (omega - x) * 12
-
-    for k in range(1, months + 1):
-        age_k = x + (k - 1) // 12  # edad vigente en ese mes (aprox)
-        q = _qx(age_k, gender)
-        p_year = 1.0 - q
-        p_m = p_year ** (1.0 / 12.0)
-
-        p_surv *= p_m
-        pv += (v_m ** k) * p_surv
-
-    return float(pv)
-
+    # Implement life expectancy calculation based on mortality tables
+    if sex == 'male':
+        # Example implementation - replace with actual life expectancy calculation
+        return 72.7
+    else:
+        return 79.2
 
 def pension_mensual_desde_sci(sci: float, age_ret: int, gender: Any) -> float:
     """
     === ECUACIÓN PRESENTACIÓN ===
-      R = SCI / ä̈_x^(12)    (SIN primas)
+      R = SCI / e * 12   (SIN primas)
 
     (tú pediste explícitamente ya no usar primas)
     """
-    ax = _annuity_factor_monthly(int(age_ret), gender)
-    if ax <= 0:
+    ex = life_exp(int(age_ret), gender)
+    ex = ex - int(age_ret)  # años de esperanza de vida restantes
+    if ex <= 0:
         return 0.0
-    return float(sci / ax)
+    return float(sci / (ex*12.0))
 
 
 # =============================================================================
 # FUNCIÓN PRINCIPAL (NO rompe tu interfaz)
 # =============================================================================
+
+def pg_year_from_inputs(year_now: int, age_now: int, age_ret: int) -> int:
+    """
+    Año efectivo para tabla de pensión garantizada.
+    La transición aplica hasta 2030; después se usa 2030.
+    """
+    year_ret = int(year_now) + (int(age_ret) - int(age_now))
+    return max(2021, min(year_ret, 2030))
+
+def pg_year_from_inputs(year_now: int, age_now: int, age_ret: int) -> int:
+    """
+    Año efectivo para la tabla de PG.
+    La tabla transitoria llega hasta 2030; después se usa 2030.
+    """
+    year_ret = int(year_now) + (int(age_ret) - int(age_now))
+    return max(2021, min(year_ret, 2030))
+
+
+def min_weeks_required_by_year(year_ret_real: int) -> int:
+    """
+    Requisito legal de semanas por año de retiro real.
+    """
+    if year_ret_real <= 2020:
+        return 1250
+    if year_ret_real == 2021:
+        return 750
+    if year_ret_real == 2022:
+        return 775
+    if year_ret_real == 2023:
+        return 800
+    if year_ret_real == 2024:
+        return 825
+    if year_ret_real == 2025:
+        return 850
+    if year_ret_real == 2026:
+        return 875
+    if year_ret_real == 2027:
+        return 900
+    if year_ret_real == 2028:
+        return 925
+    if year_ret_real == 2029:
+        return 950
+    if year_ret_real == 2030:
+        return 975
+    return 1000
+
+
+def factibilidad_de_retiro(
+    age_now: int,
+    exp_retirement_age: int,
+    weeks_now: int,
+    year_now: int,
+) -> bool:
+    """
+    Valida si alcanza semanas mínimas a la edad de retiro.
+    """
+    weeks_at_ret = int(weeks_now) + (int(exp_retirement_age) - int(age_now)) * 52
+    year_ret_real = int(year_now) + (int(exp_retirement_age) - int(age_now))
+    min_weeks = min_weeks_required_by_year(year_ret_real)
+    return bool(weeks_at_ret >= min_weeks)
+
 
 def replacement_rate_lss1997(
     age_now: int,
@@ -327,33 +334,20 @@ def replacement_rate_lss1997(
     assumptions: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Core LSS 1997 (compat con tu UI actual)
+    Core LSS 1997 simplificado, compatible con tu UI actual.
 
-    Inputs (UI actual):
+    Inputs UI:
       - age_now
       - salary_monthly
       - voluntary_rate
 
-    Internos (por default desde JSON):
-      - edad retiro: ASS["default_retirement_age"] o 65
-      - semanas actuales: ASS["default_weeks_now"] o 0
-      - rendimiento anual: ASS["default_annual_return"] o ASS["tasa_retorno_anual"] o 0.05
-      - género: ASS["default_gender"] o ASS["gender"] o "male"
-
-    === DONDE CAE CADA ECUACIÓN DE LA PRESENTACIÓN ===
-    (1) SCI al retiro: monto_acumulado_al_retiro()
-        SCI_{t+1} = (SCI_t + C) * (1 + j_m)
-
-    (2) Renta vitalicia mensual (actuarial):
-        R = SCI / ä̈_x^(12)
-        -> pension_mensual_desde_sci()
-
-    (3) Factor actuarial mensual:
-        ä̈_x^(12) = sum v_m^k * {}_k p_x
-        -> _annuity_factor_monthly()
-
-    (4) Pensión final con PG:
-        pension = max(R, PG)
+    assumptions puede traer:
+      - default_retirement_age
+      - default_weeks_now
+      - default_annual_return
+      - default_gender
+      - saldo_actual
+      - year_now
     """
     local_ASS = ASS.copy()
     if assumptions:
@@ -361,82 +355,90 @@ def replacement_rate_lss1997(
 
     exp_ret_age = int(local_ASS.get("default_retirement_age", 65))
     weeks_now = int(local_ASS.get("default_weeks_now", 0))
-    annual_return = float(local_ASS.get("default_annual_return", local_ASS.get("tasa_retorno_anual", 0.05)))
-
-    # género sin romper UI: lo tomas de assumptions/default
+    annual_return = float(
+        local_ASS.get("default_annual_return", local_ASS.get("tasa_retorno_anual", 0.05))
+    )
     gender = local_ASS.get("default_gender", local_ASS.get("gender", "male"))
+    year_now = int(local_ASS.get("year_now", 2026))
 
     sbc_m = salario_de_cotizacion(float(salary_monthly))
-    weeks_at_ret = weeks_now + (exp_ret_age - int(age_now)) * 52
-    ok = factibilidad_de_retiro(int(age_now), exp_ret_age, weeks_now)
+    salario_uma = sbc_entre_uma(float(salary_monthly))
 
-    # (1) SCI al retiro
+    year_ret_real = year_now + (exp_ret_age - int(age_now))
+    year_ret_pg = pg_year_from_inputs(year_now, int(age_now), exp_ret_age)
+
+    weeks_at_ret = weeks_now + (exp_ret_age - int(age_now)) * 52
+
+    ok = factibilidad_de_retiro(
+        age_now=int(age_now),
+        exp_retirement_age=int(exp_ret_age),
+        weeks_now=int(weeks_now),
+        year_now=int(year_now),
+    )
+
+    # saldo inicial
     saldo_actual = local_ASS.get("saldo_actual", None)
     sci0 = sci0_from_inputs_simple(
         saldo_actual=saldo_actual,
         weeks_now=weeks_now,
-        salary_monthly=salary_monthly,
-        annual_return=annual_return,
+        salary_monthly=float(salary_monthly),
+        annual_return=float(annual_return),
     )
 
+    # SCI al retiro
     sci = monto_acumulado_al_retiro(
-        age_now=age_now,
-        exp_retirement_age=exp_ret_age,
-        salary_monthly=salary_monthly,
-        voluntary_rate=voluntary_rate,
-        tasa_retorno_anual=annual_return,
+        age_now=int(age_now),
+        exp_retirement_age=int(exp_ret_age),
+        salary_monthly=float(salary_monthly),
+        voluntary_rate=float(voluntary_rate),
+        tasa_retorno_anual=float(annual_return),
         saldo_inicial=float(sci0),
     )
 
-    # (2)-(3) Pensión actuarial desde SCI y ä̈_x^(12)
-    pension_R = pension_mensual_desde_sci(sci=float(sci), age_ret=exp_ret_age, gender=gender)
-
-    # (4) PG si aplica
-    # dentro de replacement_rate_lss1997, ya con local_ASS listo
-    pg_assumptions = dict(local_ASS)  # copia
-
-    # si no viene pg_table en overrides, úsala desde el JSON cargado en el core
-    if "pg_table" not in pg_assumptions:
-        # AJUSTA la llave al nombre real dentro de tu JSON
-        pg_assumptions["pg_table"] = TABLES.get("pension_garantizada_3d")  # ejemplo
-
-
-    pg = pension_garantizada_desde_tabla(
-    year_ret=year_ret,
-    age_ret=age_ret,
-    weeks_at_ret=weeks_at_ret,
-    salario_uma=salario_uma,
-    tables=assumptions["tables"],
+    # pensión mensual simple desde SCI
+    pension_R = pension_mensual_desde_sci(
+        sci=float(sci),
+        age_ret=int(exp_ret_age),
+        gender=gender,
     )
 
-    pension = float(max(pension_R, pg)) if ok else 0.0
+    # PG desde tabla
+    if ok:
+        pg = pension_garantizada_desde_tabla(
+            year_ret=int(year_ret_pg),
+            age_ret=int(exp_ret_age),
+            weeks_at_ret=int(weeks_at_ret),
+            salario_uma=float(salario_uma),
+            tables=TABLES,
+        )
+    else:
+        pg = 0.0
 
-    denom = float(salary_monthly) if float(salary_monthly) > 0 else 1.0
-    rr = float(pension / denom)
+    pension = float(max(pension_R, pg)) if ok else 0.0
+    rr = float(pension / salary_monthly) if float(salary_monthly) > 0 else 0.0
 
     return {
-        "replacement_rate": rr,
-        "pension_monthly": pension,
+        "replacement_rate": float(rr),
+        "pension_monthly": float(pension),
         "sci": float(sci),
         "pension_actuarial_R": float(pension_R),
         "pension_garantizada": float(pg),
-        # auxiliares útiles
         "age_now": int(age_now),
         "exp_retirement_age": int(exp_ret_age),
+        "year_now": int(year_now),
+        "year_ret_real": int(year_ret_real),
+        "year_ret_pg": int(year_ret_pg),
         "salary_monthly": float(salary_monthly),
         "sbc_monthly": float(sbc_m),
+        "salario_uma": float(salario_uma),
         "voluntary_rate": float(voluntary_rate),
         "annual_return": float(annual_return),
         "weeks_now": int(weeks_now),
         "weeks_at_ret": int(weeks_at_ret),
         "ok_eligibility": bool(ok),
         "gender_used": _sex_key(gender),
-        "annuity_factor_monthly": float(_annuity_factor_monthly(exp_ret_age, gender)),
     }
 
-# =============================================================================
-# Solver (NO rompe tu interfaz)
-# =============================================================================
 
 def solve_voluntary_rate_for_target(
     age_now: int,
@@ -446,28 +448,78 @@ def solve_voluntary_rate_for_target(
     hi: float = 0.30,
     tol: float = 1e-4,
     max_iter: int = 60,
-    assumptions: Optional[Dict[str, Any]] = None,   # <-- NUEVO
+    assumptions: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Búsqueda binaria sobre voluntary_rate (consistente con assumptions)."""
-    if target_rr <= 0:
-        return {"voluntary_rate": 0.0, "achieved_rr": 0.0, "iters": 0}
-
+    """
+    Busca la tasa voluntaria necesaria para alcanzar una tasa de reemplazo objetivo.
+    """
+    target_rr = float(target_rr)
     lo = float(lo)
     hi = float(hi)
 
+    if target_rr <= 0:
+        out0 = replacement_rate_lss1997(
+            int(age_now),
+            float(salary_monthly),
+            0.0,
+            assumptions=assumptions,
+        )
+        return {
+            "voluntary_rate": 0.0,
+            "achieved_rr": float(out0["replacement_rate"]),
+            "iters": 0,
+            "status": "target_nonpositive",
+        }
+
+    rr_lo = replacement_rate_lss1997(
+        int(age_now),
+        float(salary_monthly),
+        lo,
+        assumptions=assumptions,
+    )["replacement_rate"]
+
+    if rr_lo >= target_rr:
+        return {
+            "voluntary_rate": float(lo),
+            "achieved_rr": float(rr_lo),
+            "iters": 0,
+            "status": "already_reached_at_lo",
+        }
+
+    rr_hi = replacement_rate_lss1997(
+        int(age_now),
+        float(salary_monthly),
+        hi,
+        assumptions=assumptions,
+    )["replacement_rate"]
+
+    if rr_hi < target_rr:
+        return {
+            "voluntary_rate": float(hi),
+            "achieved_rr": float(rr_hi),
+            "iters": 0,
+            "status": "target_not_reached_with_hi",
+        }
+
     for it in range(int(max_iter)):
         mid = 0.5 * (lo + hi)
+
         rr_mid = replacement_rate_lss1997(
             int(age_now),
             float(salary_monthly),
             float(mid),
-            assumptions=assumptions,              # <-- PASA assumptions
+            assumptions=assumptions,
         )["replacement_rate"]
 
-        if abs(rr_mid - float(target_rr)) <= float(tol):
-            return {"voluntary_rate": mid, "achieved_rr": rr_mid, "iters": it + 1}
+        if abs(rr_mid - target_rr) <= tol:
+            return {
+                "voluntary_rate": float(mid),
+                "achieved_rr": float(rr_mid),
+                "iters": it + 1,
+                "status": "ok",
+            }
 
-        if rr_mid < float(target_rr):
+        if rr_mid < target_rr:
             lo = mid
         else:
             hi = mid
@@ -477,25 +529,12 @@ def solve_voluntary_rate_for_target(
         int(age_now),
         float(salary_monthly),
         float(mid),
-        assumptions=assumptions,                  # <-- PASA assumptions
+        assumptions=assumptions,
     )["replacement_rate"]
 
-    return {"voluntary_rate": mid, "achieved_rr": rr_final, "iters": int(max_iter)}
-
-
-def rr_curve(
-    age_now: int,
-    salary_monthly: float,
-    voluntary_rates: np.ndarray,
-    assumptions: Optional[Dict[str, Any]] = None,   # <-- NUEVO
-) -> pd.DataFrame:
-    rows = []
-    for v in voluntary_rates:
-        out = replacement_rate_lss1997(
-            int(age_now),
-            float(salary_monthly),
-            float(v),
-            assumptions=assumptions,               # <-- PASA assumptions
-        )
-        rows.append({"voluntary_rate": float(v), "replacement_rate": out["replacement_rate"]})
-    return pd.DataFrame(rows)
+    return {
+        "voluntary_rate": float(mid),
+        "achieved_rr": float(rr_final),
+        "iters": int(max_iter),
+        "status": "max_iter",
+    }
