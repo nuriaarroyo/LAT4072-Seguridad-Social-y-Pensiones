@@ -230,15 +230,8 @@ def sci0_from_inputs_simple(
     saldo_actual: Optional[float],
     weeks_now: Optional[int],
     salary_monthly: float,
-    annual_return: float,
     year_now: int,
 ) -> float:
-    """
-    Regla simple:
-    - si hay saldo actual > 0, usarlo
-    - si no, estimarlo desde semanas
-    - si no, 0
-    """
     if saldo_actual is not None and float(saldo_actual) > 0:
         return float(saldo_actual)
 
@@ -246,7 +239,6 @@ def sci0_from_inputs_simple(
         return saldo_inicial_aprox_desde_semanas(
             weeks_now=int(weeks_now),
             salary_monthly=float(salary_monthly),
-            annual_return=float(annual_return),
             year_now=int(year_now),
         )
 
@@ -344,12 +336,11 @@ def replacement_rate_lss1997(
 
     saldo_actual = local_ASS.get("saldo_actual", None)
     sci0 = sci0_from_inputs_simple(
-        saldo_actual=saldo_actual,
-        weeks_now=weeks_now,
-        salary_monthly=float(salary_monthly),
-        annual_return=float(annual_return),
-        year_now=int(year_now),
-    )
+    saldo_actual=saldo_actual,
+    weeks_now=weeks_now,
+    salary_monthly=float(salary_monthly),
+    year_now=int(year_now),
+   )
 
     sci = monto_acumulado_al_retiro(
         age_now=int(age_now),
