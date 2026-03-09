@@ -174,12 +174,14 @@ def aportacion_voluntaria(sbc_mensual: float, voluntary_rate: float) -> float:
 def saldo_inicial_aprox_desde_semanas(
     weeks_now: int,
     salary_monthly: float,
+    annual_return: float,
     year_now: int,
 ) -> float:
     """
-    Aproximación conservadora del saldo inicial:
-    semanas -> meses cotizados aproximados
-    saldo inicial ~ meses * aportación obligatoria actual
+    Aproximación simple del saldo inicial:
+    - convierte semanas a meses pasados
+    - asume SBC constante
+    - aporta tasa obligatoria constante del año actual
     """
     if int(weeks_now) <= 0:
         return 0.0
@@ -189,8 +191,13 @@ def saldo_inicial_aprox_desde_semanas(
 
     sbc_m = salario_de_cotizacion(float(salary_monthly))
     c_obl = aportacion_obligatoria(sbc_m, int(year_now))
+    
 
-    return float(months_past * c_obl)
+    sci0 = 0.0
+    for _ in range(months_past):
+        sci0 = (sci0 + c_obl) 
+
+    return float(sci0)
 
 
 def monto_acumulado_al_retiro(
@@ -217,11 +224,11 @@ def monto_acumulado_al_retiro(
     c_vol = aportacion_voluntaria(sbc_m, float(voluntary_rate))
     contrib_m = aportaciones_totales_mensuales(c_obl, c_vol)
 
-    j_m = float(tasa_retorno_anual) / 12.0
+    
 
     sci = float(saldo_inicial)
     for _ in range(T):
-        sci = (sci + contrib_m) * (1.0 + j_m)
+        sci = (sci + contrib_m) 
 
     return float(sci)
 
@@ -230,8 +237,15 @@ def sci0_from_inputs_simple(
     saldo_actual: Optional[float],
     weeks_now: Optional[int],
     salary_monthly: float,
+    annual_return: float,
     year_now: int,
 ) -> float:
+    """
+    Regla simple:
+    - si hay saldo actual > 0, usarlo
+    - si no, estimarlo desde semanas
+    - si no, 0
+    """
     if saldo_actual is not None and float(saldo_actual) > 0:
         return float(saldo_actual)
 
@@ -239,6 +253,7 @@ def sci0_from_inputs_simple(
         return saldo_inicial_aprox_desde_semanas(
             weeks_now=int(weeks_now),
             salary_monthly=float(salary_monthly),
+            annual_return=float(annual_return),
             year_now=int(year_now),
         )
 
@@ -336,11 +351,12 @@ def replacement_rate_lss1997(
 
     saldo_actual = local_ASS.get("saldo_actual", None)
     sci0 = sci0_from_inputs_simple(
-    saldo_actual=saldo_actual,
-    weeks_now=weeks_now,
-    salary_monthly=float(salary_monthly),
-    year_now=int(year_now),
-   )
+        saldo_actual=saldo_actual,
+        weeks_now=weeks_now,
+        salary_monthly=float(salary_monthly),
+        annual_return=float(annual_return),
+        year_now=int(year_now),
+    )
 
     sci = monto_acumulado_al_retiro(
         age_now=int(age_now),
