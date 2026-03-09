@@ -238,29 +238,32 @@ def _sex_key(gender: Any) -> str:
 
 
 
-def life_exp(age: int, gender: Any, age_ret: int) -> float:
-    """https://www.inegi.org.mx/app/tabulados/interactivos/?pxq=Mortalidad_Mortalidad_09_db78b87b-1e13-46d9-9adf-9c29fe345276"""
+def life_exp(age_ret: int, gender: Any) -> float:
+    """
+    Aproximación simple de años restantes de vida.
+    """
     sex = _sex_key(gender)
-    # Implement life expectancy calculation based on mortality tables
-    if sex == 'male':
-        # Example implementation - replace with actual life expectancy calculation
-        return 72.7
+
+    if sex == "male":
+        ex0 = 72.7
     else:
-        return 79.2
+        ex0 = 79.2
+
+    remaining_years = ex0 - int(age_ret)
+    return max(remaining_years, 0.0)
+
 
 def pension_mensual_desde_sci(sci: float, age_ret: int, gender: Any) -> float:
     """
-    === ECUACIÓN PRESENTACIÓN ===
-      R = SCI / e * 12   (SIN primas)
-
-    (tú pediste explícitamente ya no usar primas)
+    Pensión mensual simple:
+      R = SCI / (e_x * 12)
     """
     ex = life_exp(int(age_ret), gender)
-    ex = ex - int(age_ret)  # años de esperanza de vida restantes
+
     if ex <= 0:
         return 0.0
-    return float(sci / (ex*12.0))
 
+    return float(sci / (ex * 12.0))
 
 # =============================================================================
 # FUNCIÓN PRINCIPAL (NO rompe tu interfaz)
