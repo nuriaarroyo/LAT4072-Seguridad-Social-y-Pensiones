@@ -11,6 +11,7 @@
     "default_gender": "male",
     "default_weeks_now": 0,
     "default_balance_now": 0.0,
+    "default_salary_growth_annual": 0.015,
    
 
     "inflation_annual": 0.0547,

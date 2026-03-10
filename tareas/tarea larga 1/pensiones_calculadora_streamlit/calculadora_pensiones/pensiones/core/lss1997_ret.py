@@ -26,6 +26,7 @@ TABLES: Dict[str, Any] = P.get("tables", {}).copy()
 TABLES["pg_weeks_thresholds_by_year"] = P["pg_weeks_thresholds_by_year"]
 TABLES["pension_garantizada"] = P["pension_garantizada"]
 
+
 # =============================================================================
 # Helpers básicos
 # =============================================================================
@@ -38,10 +39,14 @@ def salario_maximo_cotizable() -> float:
     """SBC mensual topado a 25 UMA."""
     return float(25.0 * uma_m())
 
+def salario_minimo_cotizable() -> float:
+    return float(1.0 * uma_m())
+
 
 def salario_de_cotizacion(salary_monthly: float) -> float:
-    """SBC mensual topado."""
-    return float(min(float(salary_monthly), salario_maximo_cotizable()))
+    s = float(salary_monthly)
+    return float(min(max(s, salario_minimo_cotizable()), salario_maximo_cotizable()))
+
 
 
 def sbc_entre_uma(salary_monthly: float) -> float:
@@ -125,6 +130,95 @@ def factibilidad_de_retiro(
     min_weeks = min_weeks_required_by_year(year_ret_real)
     return bool(weeks_at_ret >= min_weeks)
 
+#=============================================================================
+# Carrera salareil y saldo inicial
+#==============================================================================
+def saldo_inicial_aprox_desde_semanas(
+    weeks_now: int,
+    salary_monthly: float,
+    annual_return: float,
+    salary_growth_annual: float,
+    year_now: int,
+    ) -> float:
+        if int(weeks_now) <= 0:
+            return 0.0
+
+        months_past = int(round(float(weeks_now) / 4.3333333333))
+        months_past = max(months_past, 0)
+
+        jm = ((1.0 + float(annual_return)) ** (1.0 / 12.0)) - 1.0
+        gm = ((1.0 + float(salary_growth_annual)) ** (1.0 / 12.0)) - 1.0
+
+        sci0 = 0.0
+        for m in range(months_past):
+            months_ago = months_past - 1 - m
+            salario_hist = float(salary_monthly) / ((1.0 + gm) ** months_ago)
+            sbc_hist = salario_de_cotizacion(salario_hist)
+            c_obl = aportacion_obligatoria(sbc_hist, int(year_now))
+            sci0 = (sci0 + c_obl) * (1.0 + jm)
+
+        return float(sci0)
+
+def salario_al_retiro(
+    age_now: int,
+    age_ret: int,
+    salary_monthly: float,
+    salary_growth_annual: float,
+    ) -> float:
+        years = max(int(age_ret) - int(age_now), 0)
+        salario_ret = float(salary_monthly) * ((1.0 + float(salary_growth_annual)) ** years)
+        return float(salario_de_cotizacion(salario_ret))
+
+def trayectoria_salarial(
+    age_now: int,
+    age_ret: int,
+    salary_monthly: float,
+    salary_growth_annual: float,
+    year_now: int,
+    ) -> pd.DataFrame:
+        rows = []
+        gm = ((1.0 + float(salary_growth_annual)) ** (1.0 / 12.0)) - 1.0
+        T = max((int(age_ret) - int(age_now)) * 12, 0)
+
+        for t in range(T + 1):
+            edad = float(age_now) + t / 12.0
+            year = float(year_now) + t / 12.0
+            salario = float(salary_monthly) * ((1.0 + gm) ** t)
+            sbc = salario_de_cotizacion(salario)
+
+            rows.append(
+                {
+                    "month": int(t),
+                    "age": edad,
+                    "year": year,
+                    "salary_monthly": float(salario),
+                    "sbc_monthly": float(sbc),
+                }
+            )
+
+        return pd.DataFrame(rows)
+
+def trayectoria_pension(
+    pension_monthly: float,
+    age_ret: int,
+    gender: Any,
+    year_ret: int,
+    ) -> pd.DataFrame:
+        ex = life_exp(int(age_ret), gender)
+        months = max(int(round(ex * 12)), 0)
+
+        rows = []
+        for m in range(months + 1):
+            rows.append(
+                {
+                    "month": int(m),
+                    "age": float(age_ret) + m / 12.0,
+                    "year": float(year_ret) + m / 12.0,
+                    "pension_monthly": float(pension_monthly),
+                }
+            )
+
+        return pd.DataFrame(rows)
 
 # =============================================================================
 # Aportaciones mensuales
@@ -207,31 +301,30 @@ def monto_acumulado_al_retiro(
     salary_monthly: float,
     voluntary_rate: float,
     tasa_retorno_anual: float,
+    salary_growth_annual: float,
     year_now: int,
     saldo_inicial: float = 0.0,
-) -> float:
-    """
-    Proyección mensual simple de SCI.
-    Para no rehacer todo el backbone, se usa la tasa obligatoria del año actual
-    como aproximación estable.
-    """
-    T = max((int(exp_retirement_age) - int(age_now)) * 12, 0)
-    if T == 0:
-        return float(saldo_inicial)
+    ) -> float:
+        T = max((int(exp_retirement_age) - int(age_now)) * 12, 0)
+        if T == 0:
+            return float(saldo_inicial)
 
-    sbc_m = salario_de_cotizacion(float(salary_monthly))
+        jm = ((1.0 + float(tasa_retorno_anual)) ** (1.0 / 12.0)) - 1.0
+        gm = ((1.0 + float(salary_growth_annual)) ** (1.0 / 12.0)) - 1.0
 
-    c_obl = aportacion_obligatoria(sbc_m, int(year_now))
-    c_vol = aportacion_voluntaria(sbc_m, float(voluntary_rate))
-    contrib_m = aportaciones_totales_mensuales(c_obl, c_vol)
+        sci = float(saldo_inicial)
 
-    jm = ((1.0 + float(tasa_retorno_anual)) ** (1.0 / 12.0) )- 1.0
+        for t in range(T):
+            salario_t = float(salary_monthly) * ((1.0 + gm) ** t)
+            sbc_t = salario_de_cotizacion(salario_t)
 
-    sci = float(saldo_inicial)
-    for _ in range(T):
-        sci = (sci + contrib_m)  * (1.0 + jm)
+            c_obl = aportacion_obligatoria(sbc_t, int(year_now))
+            c_vol = aportacion_voluntaria(sbc_t, float(voluntary_rate))
+            contrib_m = aportaciones_totales_mensuales(c_obl, c_vol)
 
-    return float(sci)
+            sci = (sci + contrib_m) * (1.0 + jm)
+
+        return float(sci)
 
 
 def sci0_from_inputs_simple(
@@ -239,26 +332,22 @@ def sci0_from_inputs_simple(
     weeks_now: Optional[int],
     salary_monthly: float,
     annual_return: float,
+    salary_growth_annual: float,
     year_now: int,
-) -> float:
-    """
-    Regla simple:
-    - si hay saldo actual > 0, usarlo
-    - si no, estimarlo desde semanas
-    - si no, 0
-    """
-    if saldo_actual is not None and float(saldo_actual) > 0:
-        return float(saldo_actual)
+    ) -> float:
+        if saldo_actual is not None and float(saldo_actual) > 0:
+            return float(saldo_actual)
 
-    if weeks_now is not None and int(weeks_now) > 0:
-        return saldo_inicial_aprox_desde_semanas(
-            weeks_now=int(weeks_now),
-            salary_monthly=float(salary_monthly),
-            annual_return=float(annual_return),
-            year_now=int(year_now),
-        )
+        if weeks_now is not None and int(weeks_now) > 0:
+            return saldo_inicial_aprox_desde_semanas(
+                weeks_now=int(weeks_now),
+                salary_monthly=float(salary_monthly),
+                annual_return=float(annual_return),
+                salary_growth_annual=float(salary_growth_annual),
+                year_now=int(year_now),
+            )
 
-    return 0.0
+        return 0.0
 
 
 # =============================================================================
@@ -329,6 +418,7 @@ def replacement_rate_lss1997(
             local_ASS.get("retirement_age_default", 65),
         )
     )
+    salary_growth_annual = float(local_ASS.get("default_salary_growth_annual", 0.015))
     weeks_now = int(local_ASS.get("default_weeks_now", 0))
     annual_return = float(
         local_ASS.get("default_annual_return", local_ASS.get("tasa_retorno_anual", 0.05))
@@ -352,21 +442,23 @@ def replacement_rate_lss1997(
 
     saldo_actual = local_ASS.get("saldo_actual", None)
     sci0 = sci0_from_inputs_simple(
-        saldo_actual=saldo_actual,
-        weeks_now=weeks_now,
-        salary_monthly=float(salary_monthly),
-        annual_return=float(annual_return),
-        year_now=int(year_now),
+    saldo_actual=saldo_actual,
+    weeks_now=weeks_now,
+    salary_monthly=float(salary_monthly),
+    annual_return=float(annual_return),
+    salary_growth_annual=float(salary_growth_annual),
+    year_now=int(year_now), 
     )
 
     sci = monto_acumulado_al_retiro(
-        age_now=int(age_now),
-        exp_retirement_age=int(exp_ret_age),
-        salary_monthly=float(salary_monthly),
-        voluntary_rate=float(voluntary_rate),
-        tasa_retorno_anual=float(annual_return),
-        year_now=int(year_now),
-        saldo_inicial=float(sci0),
+    age_now=int(age_now),
+    exp_retirement_age=int(exp_ret_age),
+    salary_monthly=float(salary_monthly),
+    voluntary_rate=float(voluntary_rate),
+    tasa_retorno_anual=float(annual_return),
+    salary_growth_annual=float(salary_growth_annual),
+    year_now=int(year_now),
+    saldo_inicial=float(sci0),  
     )
 
     pension_R = pension_mensual_desde_sci(
@@ -387,7 +479,14 @@ def replacement_rate_lss1997(
         pg = 0.0
 
     pension = float(max(pension_R, pg)) if ok else 0.0
-    rr = float(pension / float(salary_monthly)) if float(salary_monthly) > 0 else 0.0
+    salario_ret = salario_al_retiro(
+    age_now=int(age_now),
+    age_ret=int(exp_ret_age),
+    salary_monthly=float(salary_monthly),
+    salary_growth_annual=float(salary_growth_annual),
+    )
+
+    rr = float(pension / salario_ret) if salario_ret > 0 else 0.0
 
     return {
         "replacement_rate": float(rr),
@@ -412,6 +511,8 @@ def replacement_rate_lss1997(
         "tasa_obligatoria_total": float(tasa_obligatoria_total(int(year_now), float(sbc_m))),
         "aportacion_obligatoria_mensual": float(aportacion_obligatoria(float(sbc_m), int(year_now))),
         "aportacion_voluntaria_mensual": float(aportacion_voluntaria(float(sbc_m), float(voluntary_rate))),
+        "salary_retirement_monthly": float(salario_ret),
+        "salary_growth_annual": float(salary_growth_annual),
     }
 
 

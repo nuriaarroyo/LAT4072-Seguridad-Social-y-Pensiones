@@ -9,8 +9,9 @@ from pensiones.core.lss1997_ret import (
     replacement_rate_lss1997,
     solve_voluntary_rate_for_target,
     rr_curve,
+    trayectoria_salarial,
+    trayectoria_pension,
 )
-
 
 
 def render():
@@ -87,6 +88,15 @@ def render():
                         value=20000.0,
                         step=100.0,
                     )
+                    salary_growth_annual = st.number_input(
+                        "Crecimiento salarial real anual",
+                        min_value=0.0,
+                        max_value=0.05,
+                        value=0.015,
+                        step=0.005,
+                    format="%.3f",
+                     )
+
                     
                 with c2:
                     vol_actual = st.slider(
@@ -97,7 +107,7 @@ def render():
                         step=0.01,
                     )
 
-            with st.expander("📈 Semanas y saldo", expanded=False):
+            with st.expander("📈 Semanas y saldo", expanded=True):
                 c1, c2 = st.columns(2)
                 with c1:
                     weeks_now = st.number_input(
@@ -129,9 +139,9 @@ def render():
 
             with st.expander("🎯 Objetivo & curva", expanded=True):
                 st.caption("Estos valores alimentan el solver y la gráfica.")
-                target_rr = st.slider("Tasa de reemplazo objetivo", 0.0, 1.2, 0.70)
+                target_rr = st.slider("Tasa de reemplazo objetivo", 0.0, 1.0, 0.70)
                 v_min = st.slider("Voluntaria mínima (para curva)", 0.0, 0.30, 0.0)
-                v_max = st.slider("Voluntaria máxima (para curva)", 0.0, 0.30, 0.20)
+                v_max = st.slider("Voluntaria máxima (para curva)", 0.0, 0.50, 0.20)
                 n_pts = st.slider("Puntos curva", 10, 100, 40)
 
                 udi_mxn = st.number_input(
@@ -170,10 +180,9 @@ def render():
         overrides = {
             "default_retirement_age": int(exp_retirement_age),
             "default_weeks_now": int(weeks_now),
-            #"default_annual_return": float(annual_return),
             "default_gender": gender_core,
+            "default_salary_growth_annual": float(salary_growth_annual),
             "year_now": int(year_now),
-            "pg_mensual": 5000.0,  # TODO: cambia a input/tabla real cuando la conectes
         }
 
         if float(saldo_actual) > 0.0:
@@ -304,14 +313,9 @@ def render():
                     "exp_retirement_age": int(exp_retirement_age),
                     "gender_ui": gender_ui,
                     "gender_core": gender_core,
-                    """"dependientes": int(dependientes),
-                    "partner": partner,
-                    "partner_age": partner_age,
-                    "gender_partner": gender_partner,"""
                     "salary_monthly": float(salary_monthly),
+                    "salary_growth_annual": float(salary_growth_annual),
                     "weeks_now": int(weeks_now),
-                    # quiero llamarlo del jsson 
-                    #"annual_return": float(annual_return),
                     "saldo_actual": float(saldo_actual),
                     "target_rr": float(target_rr),
                     "v_min": float(v_min),
@@ -319,6 +323,7 @@ def render():
                     "n_pts": int(n_pts),
                     "udi_mxn": float(udi_mxn),
                     "solver": sol,
+                    "annual_return_used": float(out_actual["annual_return"]),
                     "out_actual_keys": list(out_actual.keys()),
                     "out_req_keys": list(out_req.keys()),
                 }
@@ -389,3 +394,46 @@ def render():
             "Comenta: sensibilidad de RR a voluntaria, cómo cambia con rendimiento/edad retiro/semanas "
             "y el impacto del supuesto de mortalidad por género."
         )
+
+
+    
+    #====================================================================================================
+    #trayectoria salarial y de pensión 
+    # ====================================================================================================
+    st.subheader("Trayectoria salarial y de pensión")
+    st.write(
+        "Se muestra la trayectoria salarial hasta el retiro y la trayectoria de la pensión desde el retiro hasta la muerte esperada."
+    )
+
+    traj_sal = trayectoria_salarial(
+        age_now=age_now,
+        age_ret=exp_retirement_age,
+        salary_monthly=salary_monthly,
+        salary_growth_annual=salary_growth_annual,
+        year_now=year_now,
+    )
+
+    traj_pen = trayectoria_pension(
+        pension_monthly=out_actual["pension_monthly"],
+        age_ret=exp_retirement_age,
+        gender=gender_core,
+        year_ret=out_actual["year_ret_real"],
+    )
+
+    fig_sal = px.line(
+        traj_sal,
+        x="age",
+        y=["salary_monthly", "sbc_monthly"],
+        labels={"value": "Monto mensual", "age": "Edad", "variable": "Serie"},
+        title="Trayectoria salarial y salario base de cotización",
+    )
+    st.plotly_chart(fig_sal, use_container_width=True)
+
+    fig_pen = px.line(
+        traj_pen,
+        x="age",
+        y="pension_monthly",
+        labels={"pension_monthly": "Pensión mensual", "age": "Edad"},
+        title="Pensión mensual esperada desde el retiro hasta la muerte esperada",
+    )
+    st.plotly_chart(fig_pen, use_container_width=True)
