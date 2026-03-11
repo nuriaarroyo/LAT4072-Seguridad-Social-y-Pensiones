@@ -99,8 +99,14 @@ def render():
                         step=0.1,
                     )
                     salary_monthly = float(sbc_uma * uma_mxn)
-                    st.caption(f"SBC mensual equivalente actual: $ {salary_monthly:,.2f} MXN")
-
+                    salary_monthly = st.slider(
+                        "Salario base de cotización mensual [MXN]",
+                        min_value=1.0 * uma_mxn,
+                        max_value=25.0 * uma_mxn,
+                        value= salary_monthly,
+                        step=0.1 * uma_mxn,
+                    )
+                    sbc_uma = salary_monthly / uma_mxn
                 with c2:
                     vol_actual = st.slider(
                         "Tasa de contribución voluntaria actual",
