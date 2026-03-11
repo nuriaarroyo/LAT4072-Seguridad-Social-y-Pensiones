@@ -14,6 +14,8 @@ from pensiones.core.lss1997_ret import (
 )
 
 
+
+
 def render():
     st.header("II) LSS 1997 — Tasa de reemplazo por cesantía en edad avanzada y vejez")
 
@@ -28,8 +30,10 @@ def render():
 """
         )
 
-    col1, col2 = st.columns([1, 1], gap="large")
 
+
+    col1, col2 = st.columns([1, 1], gap="large")
+    
     # =========================
     # ENTRADAS (col1)
     # =========================
@@ -90,23 +94,51 @@ def render():
             with st.expander("💼 Salario e historial", expanded=True):
                 c1, c2 = st.columns(2)
 
+                if "last_uma_mxn" not in st.session_state:
+                    st.session_state.last_uma_mxn = uma_mxn
+
+                if st.session_state.last_uma_mxn != uma_mxn:
+                    st.session_state.salary_monthly = st.session_state.sbc_uma * uma_mxn
+                    st.session_state.last_uma_mxn = uma_mxn
+
+
+                if "sbc_uma" not in st.session_state:
+                    st.session_state.sbc_uma = 5.0
+
+                if "salary_monthly" not in st.session_state:
+                    st.session_state.salary_monthly = st.session_state.sbc_uma * uma_mxn
+
+
+                def sync_from_uma():
+                    st.session_state.salary_monthly = st.session_state.sbc_uma * uma_mxn
+
+
+                def sync_from_mxn():
+                    st.session_state.sbc_uma = st.session_state.salary_monthly / uma_mxn
+
+
                 with c1:
-                    sbc_uma = st.slider(
+                    st.slider(
                         "Salario base de cotización mensual [UMA]",
                         min_value=1.0,
                         max_value=25.0,
-                        value=5.0,
                         step=0.1,
+                        key="sbc_uma",
+                        on_change=sync_from_uma,
                     )
-                    salary_monthly = float(sbc_uma * uma_mxn)
-                    salary_monthly = st.slider(
+
+                    st.number_input(
                         "Salario base de cotización mensual [MXN]",
-                        min_value=1.0 * uma_mxn,
-                        max_value=25.0 * uma_mxn,
-                        value= salary_monthly,
-                        step=0.1 * uma_mxn,
+                        min_value=float(1.0 * uma_mxn),
+                        max_value=float(25.0 * uma_mxn),
+                        step=100.0,
+                        key="salary_monthly",
+                        on_change=sync_from_mxn,
                     )
-                    sbc_uma = salary_monthly / uma_mxn
+
+                    sbc_uma = float(st.session_state.sbc_uma)
+                    salary_monthly = float(st.session_state.salary_monthly)
+                    st.caption(f"SBC mensual equivalente actual: $ {salary_monthly:,.2f} MXN")
                 with c2:
                     vol_actual = st.slider(
                         "Tasa de contribución voluntaria actual",
