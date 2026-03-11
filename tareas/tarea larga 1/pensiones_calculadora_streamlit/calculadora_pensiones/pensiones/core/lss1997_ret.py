@@ -265,34 +265,7 @@ def aportacion_voluntaria(sbc_mensual: float, voluntary_rate: float) -> float:
 # Proyección SCI
 # =============================================================================
 
-def saldo_inicial_aprox_desde_semanas(
-    weeks_now: int,
-    salary_monthly: float,
-    annual_return: float,
-    year_now: int,
-) -> float:
-    """
-    Aproximación simple del saldo inicial:
-    - convierte semanas a meses pasados
-    - asume SBC constante
-    - aporta tasa obligatoria constante del año actual
-    """
-    if int(weeks_now) <= 0:
-        return 0.0
 
-    months_past = int(round(float(weeks_now) / 4.3333333333))
-    months_past = max(months_past, 0)
-
-    sbc_m = salario_de_cotizacion(float(salary_monthly))
-    c_obl = aportacion_obligatoria(sbc_m, int(year_now))
-    jm = ((1.0 + float(annual_return)) ** (1.0 / 12.0) )- 1.0
-    
-
-    sci0 = 0.0
-    for _ in range(months_past):
-        sci0 = (sci0 + c_obl)  * (1.0 + jm)
-
-    return float(sci0)
 
 
 def monto_acumulado_al_retiro(
@@ -556,6 +529,8 @@ def replacement_rate_lss1997(
         "aportacion_voluntaria_mensual": float(aportacion_voluntaria(float(sbc_m), float(voluntary_rate))),
         "salary_retirement_monthly": float(salario_ret),
         "salary_growth_annual": float(salary_growth_annual),
+        "life_exp_years_used": float(life_exp(age_ret=int(exp_ret_age),gender=gender,year_ref=int(min(year_ret_real, 2026)),)),
+        "survival_premium_rate_used": float(survival_premium_rate),
     }
 
 
