@@ -78,7 +78,7 @@ Calcula la **pensión mensual** y la **tasa de reemplazo** bajo la **Ley del Seg
     pct_conyuge = 0.15  # Ambos casos tienen el mismo porcentaje
     n_hijos = st.number_input("Hijos en sistema educativo (≤25 años)", 0, 10, 0, step=1)
     pct_hijos = float(n_hijos) * 0.10
-    #pct_art14 = st.slider("Paso 10 — Art. 14° transitorio (%)", 0, 20, 11, step=1) / 100
+    pct_art14 =0.11 #st.slider("Paso 10 — Art. 14° transitorio (%)", 0, 20, 11, step=1) / 100
 
     #st.subheader("UMA / SMGV")
     #uma_diaria = st.number_input(
@@ -100,7 +100,7 @@ Calcula la **pensión mensual** y la **tasa de reemplazo** bajo la **Ley del Seg
     calcular = st.button("✅ Calcular", type="primary", use_container_width=True)
 
     if not calcular:
-        st.info("⚠️Ingresa los datos en el panel lateral y presiona **Calcular**.")
+        st.info("⚠️Ingresa los datos completos en el panel y presiona **Calcular**.")
         return
 
     # ── Cálculos ──────────────────────────────────────────────────────────────
