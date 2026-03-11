@@ -241,11 +241,11 @@ def render():
             year_now=int(year_now),
         )
 
-        salary_final = float(out_actual["salary_retirement_monthly"])
-
         
+
+
         years_to_ret = int(exp_retirement_age - age_now)
-        growth_factor = salary_final / float(salary_monthly) if float(salary_monthly) > 0 else np.nan
+        
 
         out_actual = replacement_rate_lss1997(
             int(age_now),
@@ -253,7 +253,8 @@ def render():
             float(vol_actual),
             assumptions=overrides,
         )
-
+        salary_final = float(out_actual["salary_retirement_monthly"])
+        growth_factor = salary_final / float(salary_monthly) if float(salary_monthly) > 0 else np.nan
         sol = solve_voluntary_rate_for_target(
             age_now=int(age_now),
             salary_monthly=float(salary_monthly),
