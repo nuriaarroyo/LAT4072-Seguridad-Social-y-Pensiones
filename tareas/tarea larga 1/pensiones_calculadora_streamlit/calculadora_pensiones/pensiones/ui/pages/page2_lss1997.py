@@ -14,8 +14,6 @@ from pensiones.core.lss1997_ret import (
 )
 
 
-
-
 def render():
     st.header("II) LSS 1997 — Tasa de reemplazo por cesantía en edad avanzada y vejez")
 
@@ -40,7 +38,7 @@ def render():
     with col1:
         st.subheader("Entradas")
 
-        with st.form("form_lss97", border=False):
+        #with st.form("form_lss97", border=False):
             with st.expander("⚙️ Supuestos base", expanded=False):
                 c1, c2, c3 = st.columns(3)
                 with c1:
@@ -50,6 +48,21 @@ def render():
                         value=3566.22,
                         step=1.0,
                     )
+
+                                    # Inicialización y sincronización de salario <-> UMA
+                    if "sbc_uma" not in st.session_state:
+                        st.session_state.sbc_uma = 5.0
+
+                    if "salary_monthly" not in st.session_state:
+                        st.session_state.salary_monthly = float(st.session_state.sbc_uma * uma_mxn)
+
+                    if "last_uma_mxn" not in st.session_state:
+                        st.session_state.last_uma_mxn = float(uma_mxn)
+
+                    # Si cambia la UMA, recalcula el salario en MXN a partir del valor actual en UMA
+                    if float(st.session_state.last_uma_mxn) != float(uma_mxn):
+                        st.session_state.salary_monthly = float(st.session_state.sbc_uma * uma_mxn)
+                        st.session_state.last_uma_mxn = float(uma_mxn)
                 with c2:
                     udi_mxn = st.number_input(
                         "UDI [MXN]",
@@ -57,6 +70,7 @@ def render():
                         value=8.50,
                         step=0.01,
                     )
+            with st.form("form_lss97", border=False):
                 with c3:
                     year_now = st.number_input(
                         "Año actual",
@@ -94,51 +108,49 @@ def render():
             with st.expander("💼 Salario e historial", expanded=True):
                 c1, c2 = st.columns(2)
 
-                if "last_uma_mxn" not in st.session_state:
-                    st.session_state.last_uma_mxn = uma_mxn
-
-                if st.session_state.last_uma_mxn != uma_mxn:
-                    st.session_state.salary_monthly = st.session_state.sbc_uma * uma_mxn
-                    st.session_state.last_uma_mxn = uma_mxn
-
-
-                if "sbc_uma" not in st.session_state:
-                    st.session_state.sbc_uma = 5.0
-
-                if "salary_monthly" not in st.session_state:
-                    st.session_state.salary_monthly = st.session_state.sbc_uma * uma_mxn
-
-
-                def sync_from_uma():
-                    st.session_state.salary_monthly = st.session_state.sbc_uma * uma_mxn
-
-
-                def sync_from_mxn():
-                    st.session_state.sbc_uma = st.session_state.salary_monthly / uma_mxn
-
+                
 
                 with c1:
-                    st.slider(
+                    sbc_uma = st.slider(
                         "Salario base de cotización mensual [UMA]",
                         min_value=1.0,
                         max_value=25.0,
+                        value=float(st.session_state.sbc_uma),
                         step=0.1,
-                        key="sbc_uma",
-                        on_change=sync_from_uma,
                     )
 
-                    st.number_input(
+                    salary_monthly = st.number_input(
                         "Salario base de cotización mensual [MXN]",
                         min_value=float(1.0 * uma_mxn),
                         max_value=float(25.0 * uma_mxn),
+                        value=float(st.session_state.salary_monthly),
                         step=100.0,
-                        key="salary_monthly",
-                        on_change=sync_from_mxn,
                     )
+
+                    # Resolver sincronización manual dentro del form
+                    # Si el usuario movió UMA, actualizamos MXN
+                    if abs(float(sbc_uma) - float(st.session_state.sbc_uma)) > 1e-9:
+                        st.session_state.sbc_uma = float(sbc_uma)
+                        st.session_state.salary_monthly = float(sbc_uma * uma_mxn)
+                        salary_monthly = float(st.session_state.salary_monthly)
+
+                    # Si el usuario editó MXN, actualizamos UMA
+                    elif abs(float(salary_monthly) - float(st.session_state.salary_monthly)) > 1e-9:
+                        st.session_state.salary_monthly = float(salary_monthly)
+                        st.session_state.sbc_uma = float(salary_monthly / uma_mxn)
+                        sbc_uma = float(st.session_state.sbc_uma)
+
+                    else:
+                        st.session_state.sbc_uma = float(sbc_uma)
+                        st.session_state.salary_monthly = float(salary_monthly)
 
                     sbc_uma = float(st.session_state.sbc_uma)
                     salary_monthly = float(st.session_state.salary_monthly)
-                    st.caption(f"SBC mensual equivalente actual: $ {salary_monthly:,.2f} MXN")
+
+                    st.caption(
+                        f"SBC mensual equivalente actual: $ {salary_monthly:,.2f} MXN "
+                        f"({sbc_uma:.4f} UMA)"
+                    )
                 with c2:
                     vol_actual = st.slider(
                         "Tasa de contribución voluntaria actual",
