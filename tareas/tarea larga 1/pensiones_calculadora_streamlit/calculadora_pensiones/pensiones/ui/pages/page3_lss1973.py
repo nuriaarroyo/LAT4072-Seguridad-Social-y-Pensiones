@@ -89,8 +89,8 @@ Calcula la **pensión mensual** y la **tasa de reemplazo** bajo la **Ley del Seg
     #)
 
     #st.subheader("Rango de edades")
-    #min_age = st.slider("Edad mínima", 60, 65, 60)
-    #max_age = st.slider("Edad máxima", 60, 65, 65)
+    min_age = 60 #st.slider("Edad mínima", 60, 65, 60)
+    max_age = 65 #st.slider("Edad máxima", 60, 65, 65)
 
     #if min_age > max_age:
     #    st.error("La edad mínima no puede ser mayor que la máxima.")
