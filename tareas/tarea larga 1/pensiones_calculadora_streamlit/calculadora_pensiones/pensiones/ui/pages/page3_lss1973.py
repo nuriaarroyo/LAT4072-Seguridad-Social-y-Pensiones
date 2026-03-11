@@ -22,10 +22,10 @@ def render() -> None:
     with st.expander("💡 ¿Qué hace esta calculadora?", expanded=False):
         st.markdown(
             """
-Calcula la **pensión mensual** y la **tasa de reemplazo** bajo la **Ley del Seguro Social de 1973**,.
-
-**Resultado principal:** tabla por edades (60–65) + gráfica RR y pensión + detalle paso a paso.
-"""
+Calcula la **pensión mensual**, la **tasa de reemplazo**  y la **tasa acumulada** bajo la **Ley del Seguro Social de 1973**,.
+- Permite analizar el impacto de la edad de retiro (60-65 años) en la pensión.
+- Considera factores familiares (cónyuge, hijos, Art. 14°) y la densidad de cotización (80% vs 100%).
+- Genera una tabla de sensibilidades y una gráfica para visualizar el trade-off entre retirarse antes vs. después."""
         )
 
     # ── Sidebar ───────────────────────────────────────────────────────────────
@@ -79,6 +79,8 @@ Calcula la **pensión mensual** y la **tasa de reemplazo** bajo la **Ley del Seg
     n_hijos = st.number_input("Hijos en sistema educativo (≤25 años)", 0, 10, 0, step=1)
     pct_hijos = float(n_hijos) * 0.10
     pct_art14 =0.11 #st.slider("Paso 10 — Art. 14° transitorio (%)", 0, 20, 11, step=1) / 100
+    uma_diaria = float(UMA_DIARIA_DEFAULT)
+    include_existing = True
 
     #st.subheader("UMA / SMGV")
     #uma_diaria = st.number_input(
