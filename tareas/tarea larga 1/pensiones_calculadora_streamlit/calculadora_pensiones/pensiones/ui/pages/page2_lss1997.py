@@ -239,6 +239,7 @@ def render():
             salary_monthly=float(salary_monthly),
             salary_growth_annual=float(salary_growth_annual),
             year_now=int(year_now),
+            weeks_now=int(weeks_now),
         )
 
         
@@ -539,8 +540,27 @@ def render():
         traj_sal,
         x="age",
         y=[c for c in ["salary_monthly", "sbc_monthly"] if c in traj_sal.columns],
-        labels={"value": "Monto mensual", "age": "Edad", "variable": "Serie"},
-        title="Trayectoria salarial y salario base de cotización",
+        color="segment",
+        line_dash="segment",
+        labels={
+            "value": "Monto mensual",
+            "age": "Edad",
+            "variable": "Serie",
+            "segment": "Tramo",
+        },
+        title="Trayectoria salarial estimada: histórico y proyección",
+    )
+
+    fig_sal.add_vline(
+        x=float(age_now),
+        line_width=2,
+        line_dash="dot",
+    )
+
+    fig_sal.update_layout(
+        template="plotly_white",
+        hovermode="x unified",
+        title_x=0.5,
     )
     st.plotly_chart(fig_sal, use_container_width=True)
 
