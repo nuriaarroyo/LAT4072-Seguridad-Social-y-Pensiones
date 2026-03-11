@@ -193,20 +193,21 @@ Calcula la **pensión mensual**, la **tasa de reemplazo**  y la **tasa acumulada
 #        list(range(int(min_age), int(max_age) + 1)),
 #        index=int(max_age - min_age),
 #    )
-#
-#    det = calcular_pension_lss1973(
-#        edad_actual=int(edad_actual),
-#        salario_diario_avg=float(sal_diario),
-#        semanas_cotizadas=int(semanas_cot),
-#        edad_retiro=int(edad_sel),
-#        densidad=float(densidad),
-#        pct_conyuge=float(pct_conyuge),
-#        pct_hijos_total=float(pct_hijos),
-#        pct_art14=float(pct_art14),
-#        uma_diaria=float(uma_diaria),
-#        include_existing=bool(include_existing),
-#    )
-#
+
+    edad_sel = best["Edad"]
+    det = calcular_pension_lss1973(
+        edad_actual=int(edad_actual),
+        salario_diario_avg=float(sal_diario),
+        semanas_cotizadas=int(semanas_cot),
+        edad_retiro=int(edad_sel),
+        densidad=float(densidad),
+        pct_conyuge=float(pct_conyuge),
+        pct_hijos_total=float(pct_hijos),
+        pct_art14=float(pct_art14),
+        uma_diaria=float(uma_diaria),
+        include_existing=bool(include_existing),
+    )
+
 #    pasos = [
 #        ("Paso 0", "Edad actual del trabajador", str(int(edad_actual))),
 #        ("", "Semanas cotizadas actualmente", f"{int(semanas_cot):,}"),
