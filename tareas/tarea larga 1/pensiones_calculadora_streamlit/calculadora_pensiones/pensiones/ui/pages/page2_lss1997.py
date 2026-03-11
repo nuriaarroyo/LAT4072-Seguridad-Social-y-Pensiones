@@ -20,9 +20,10 @@ def render():
     with st.expander("Qué hace esta sección", expanded=True):
         st.write(
             """
-- Estima la tasa de reemplazo (CESANTÍA/VEJEZ) para edad x
+- Estima la tasa de reemplazo (cesantía/vejez) para una edad de retiro elegida
 - Encuentra la tasa de ahorro voluntario adicional necesaria para una RR objetivo
-- Grafica RR (tasa de reemplazo) vs. diferentes tasas de contribución voluntaria
+- Grafica la RR contra diferentes tasas de contribución voluntaria
+- Muestra la trayectoria salarial hasta el retiro y la trayectoria de la pensión hasta la muerte esperada
 """
         )
 
@@ -41,7 +42,7 @@ def render():
                     uma_mxn = st.number_input(
                         "UMA mensual [MXN]",
                         min_value=1.0,
-                        value=3566.22,  # o el valor que uses
+                        value=3566.22,
                         step=1.0,
                     )
                 with c2:
@@ -59,12 +60,17 @@ def render():
                         value=2026,
                         step=1,
                     )
+
             with st.expander("👤 Biométricos del trabajador", expanded=True):
                 c1, c2 = st.columns(2)
                 with c1:
                     nombre = st.text_input("Nombre")
                     age_now = st.number_input(
-                        "Edad actual x", min_value=15, max_value=100, value=30, step=1
+                        "Edad actual x",
+                        min_value=15,
+                        max_value=100,
+                        value=30,
+                        step=1,
                     )
                 with c2:
                     exp_retirement_age = st.number_input(
@@ -75,56 +81,25 @@ def render():
                         step=1,
                     )
                     gender_ui = st.selectbox(
-                        "Género", options=["Masculino", "Femenino"], index=0
-                    )
-
-            """with st.expander("👨‍👩‍👧 Dependientes económicos", expanded=False):
-                c1, c2 = st.columns(2)
-                with c1:
-                    partner = st.selectbox(
-                        "¿Tiene pareja con derecho a pensión por viudez?",
-                        options=["No", "Sí"],
+                        "Género",
+                        options=["Masculino", "Femenino"],
                         index=0,
                     )
-                    partner_age = None
-                    gender_partner = None
-                    if partner == "Sí":
-                        partner_age = st.number_input(
-                            "Edad pareja", min_value=15, max_value=80, value=30, step=1
-                        )
-                        gender_partner = st.selectbox(
-                            "Género pareja",
-                            options=["Masculino", "Femenino"],
-                            index=1,
-                        )
-                with c2:
-                    dependientes = st.number_input(
-                        "Número de dependientes", min_value=0, value=0, step=1
-                    )
-"""
+
             with st.expander("💼 Salario e historial", expanded=True):
                 c1, c2 = st.columns(2)
+
                 with c1:
                     sbc_uma = st.slider(
-                     "Salario base de cotización mensual [UMA]",
-                    min_value=1.0,
-                    max_value=25.0,
-                    value=5.0,
-                    step=0.1,
+                        "Salario base de cotización mensual [UMA]",
+                        min_value=1.0,
+                        max_value=25.0,
+                        value=5.0,
+                        step=0.1,
                     )
                     salary_monthly = float(sbc_uma * uma_mxn)
-                    salary_monthly = st.slider(
-                        "Salario mensual [MXN] (SBC)",
-                        min_value=uma_mxn,
-                        max_value= uma_mxn * 25.0,
-                        value=salary_monthly,
-                        step=100.0,
-                    )
-
                     st.caption(f"SBC mensual equivalente: $ {salary_monthly:,.2f} MXN")
-                   
 
-                    
                 with c2:
                     vol_actual = st.slider(
                         "Tasa de contribución voluntaria actual",
@@ -139,11 +114,12 @@ def render():
                         max_value=0.05,
                         value=0.015,
                         step=0.005,
-                    format="%.3f",
-                     )
+                        format="%.3f",
+                    )
 
             with st.expander("📈 Semanas y saldo", expanded=True):
                 c1, c2 = st.columns(2)
+
                 with c1:
                     weeks_now = st.number_input(
                         "Semanas cotizadas hasta ahora",
@@ -152,6 +128,7 @@ def render():
                         value=0,
                         step=50,
                     )
+
                 with c2:
                     saldo_actual = st.number_input(
                         "Saldo actual en cuenta individual (opcional) [MXN]",
@@ -159,36 +136,21 @@ def render():
                         value=0.0,
                         step=1000.0,
                     )
-                    year_now = st.number_input(
-                        "Año actual",
-                        min_value=2021,
-                        max_value=2100,
-                        value=2026,
-                        step=1,
-                    )
 
                 st.caption(
-                    "Si saldo_actual > 0, el core puede usarlo como SCI0 (si lo conectaste en lss1997_ret). "
-                    "Si no, puede aproximar con semanas (si así lo dejaste)."
+                    "Si saldo_actual > 0, el core usa ese saldo como SCI inicial. "
+                    "Si no, aproxima el saldo con semanas cotizadas y trayectoria salarial."
                 )
 
-            with st.expander("🎯 Objetivo & curva", expanded=True):
+            with st.expander("🎯 Objetivo y curva", expanded=True):
                 st.caption("Estos valores alimentan el solver y la gráfica.")
                 target_rr = st.slider("Tasa de reemplazo objetivo", 0.0, 1.0, 0.70)
                 v_min = st.slider("Voluntaria mínima (para curva)", 0.0, 0.30, 0.0)
                 v_max = st.slider("Voluntaria máxima (para curva)", 0.0, 0.50, 0.20)
                 n_pts = st.slider("Puntos curva", 10, 100, 40)
 
-                udi_mxn = st.number_input(
-                    "Tipo de cambio UDI (MXN por UDI) — para mostrar montos en UDIs",
-                    min_value=0.0001,
-                    value=8.50,
-                    step=0.01,
-                )
-
             submitted = st.form_submit_button("Calcular")
 
-    
     # =========================
     # RESULTADOS (col2)
     # =========================
@@ -254,7 +216,7 @@ def render():
         delta_contrib_mxn_mes = contrib_vol_mxn_mes_req - contrib_vol_mxn_mes_actual
         delta_rate = float(sol["voluntary_rate"]) - float(vol_actual)
 
-        # ---------- métricas top (compacto) ----------
+        # ---------- métricas top ----------
         st.metric("RR (voluntaria actual)", pct(float(out_actual["replacement_rate"])))
         st.metric("Pensión (voluntaria actual)", mxn(float(out_actual["pension_monthly"])))
 
@@ -267,9 +229,9 @@ def render():
         with cB:
             st.metric("Requerida (RR objetivo)", pct(float(sol["voluntary_rate"])))
         with cC:
-            st.metric("Incremento", f"{delta_rate*100:.2f} pp")
+            st.metric("Incremento", f"{delta_rate * 100:.2f} pp")
 
-        st.markdown("### Aporte voluntario estimado (sobre salario mensual)")
+        st.markdown("### Aporte voluntario estimado (sobre salario mensual actual)")
         c1, c2, c3 = st.columns(3)
         with c1:
             st.metric("Actual (MXN/mes)", mxn(contrib_vol_mxn_mes_actual))
@@ -348,6 +310,8 @@ def render():
                     "exp_retirement_age": int(exp_retirement_age),
                     "gender_ui": gender_ui,
                     "gender_core": gender_core,
+                    "uma_mxn_ui": float(uma_mxn),
+                    "sbc_uma": float(sbc_uma),
                     "salary_monthly": float(salary_monthly),
                     "salary_growth_annual": float(salary_growth_annual),
                     "weeks_now": int(weeks_now),
@@ -400,14 +364,12 @@ def render():
         title_x=0.5,
     )
 
-    # Línea: voluntaria actual
     fig.add_vline(
         x=float(vol_actual),
         line_width=2,
         line_dash="dot",
     )
 
-    # Línea: voluntaria requerida
     fig.add_vline(
         x=float(sol["voluntary_rate"]),
         line_width=2,
@@ -426,15 +388,13 @@ def render():
 
     with st.expander("Comentarios (para tu archivo separado)"):
         st.write(
-            "Comenta: sensibilidad de RR a voluntaria, cómo cambia con rendimiento/edad retiro/semanas "
-            "y el impacto del supuesto de mortalidad por género."
+            "Comenta la sensibilidad de la RR a la voluntaria, cómo cambia con edad de retiro, "
+            "semanas cotizadas, crecimiento salarial y el impacto del supuesto biométrico."
         )
 
-
-    
-    #====================================================================================================
-    #trayectoria salarial y de pensión 
-    # ====================================================================================================
+    # =========================
+    # TRAYECTORIA SALARIAL Y DE PENSIÓN
+    # =========================
     st.subheader("Trayectoria salarial y de pensión")
     st.write(
         "Se muestra la trayectoria salarial hasta el retiro y la trayectoria de la pensión desde el retiro hasta la muerte esperada."
