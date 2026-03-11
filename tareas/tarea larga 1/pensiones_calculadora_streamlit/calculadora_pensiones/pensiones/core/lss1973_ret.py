@@ -15,7 +15,6 @@ SEMANAS_MINIMAS = 500
 DIAS_ANO = 365
 
 # Tabla oficial LSS 1973 (cociente salario/UMA → cuantía básica %, incremento anual %)
-# El ÚLTIMO renglón se aplica para cualquier cociente ≥ 4.75 (según tu comentario).
 TABLA_LSS1973: List[Tuple[float, float, float]] = [
     (1.00,  1.5000, 0.0000),
     (1.25,  0.4300, 0.0111), 
@@ -88,7 +87,7 @@ def calcular_pension_lss1973(
     salario_diario_avg: float,
     semanas_cotizadas: int,
     edad_retiro: int,
-    densidad: float = 0.80,
+    densidad: float = 1,
     pct_conyuge: float = 0.15,
     pct_hijos_total: float = 0.00,
     pct_art14: float = 0.11,
