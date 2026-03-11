@@ -76,7 +76,7 @@ Calcula la **pensión mensual**, la **tasa de reemplazo**  y la **tasa acumulada
         index=0
     )
     pct_conyuge = 0.15  # Ambos casos tienen el mismo porcentaje
-    n_hijos = st.number_input("Hijos en sistema educativo (≤25 años)", 0, 10, 0, step=1)
+    n_hijos = st.number_input("Hijos en sistema educativo (≤25 años) o inválidos", 0, 10, 0, step=1)
     pct_hijos = float(n_hijos) * 0.10
     pct_art14 =0.11 #st.slider("Paso 10 — Art. 14° transitorio (%)", 0, 20, 11, step=1) / 100
     uma_diaria = float(UMA_DIARIA_DEFAULT)
