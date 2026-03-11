@@ -175,9 +175,40 @@ def trayectoria_salarial(
     salary_monthly: float,
     salary_growth_annual: float,
     year_now: int,
+    weeks_now: int = 0,
     ) -> pd.DataFrame:
         rows = []
+
         gm = ((1.0 + float(salary_growth_annual)) ** (1.0 / 12.0)) - 1.0
+
+        # -----------------------------
+        # Tramo pasado estimado
+        # -----------------------------
+        months_past = int(round(float(weeks_now) / 4.3333333333))
+        months_past = max(months_past, 0)
+
+        for m in range(months_past, 0, -1):
+            t = -m
+            edad = float(age_now) + t / 12.0
+            year = float(year_now) + t / 12.0
+
+            salario = float(salary_monthly) / ((1.0 + gm) ** m)
+            sbc = salario_de_cotizacion(salario)
+
+            rows.append(
+                {
+                    "month": int(t),
+                    "age": float(edad),
+                    "year": float(year),
+                    "salary_monthly": float(salario),
+                    "sbc_monthly": float(sbc),
+                    "segment": "Histórico estimado",
+                }
+            )
+
+        # -----------------------------
+        # Punto actual y tramo futuro
+        # -----------------------------
         T = max((int(age_ret) - int(age_now)) * 12, 0)
 
         for t in range(T + 1):
@@ -189,10 +220,11 @@ def trayectoria_salarial(
             rows.append(
                 {
                     "month": int(t),
-                    "age": edad,
-                    "year": year,
+                    "age": float(edad),
+                    "year": float(year),
                     "salary_monthly": float(salario),
                     "sbc_monthly": float(sbc),
+                    "segment": "Proyección",
                 }
             )
 
