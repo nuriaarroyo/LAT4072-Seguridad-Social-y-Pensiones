@@ -124,9 +124,10 @@ Calcula la **pensión mensual**, la **tasa de reemplazo**  y la **tasa acumulada
     worst = df.loc[df["Tasa de Reemplazo"].idxmin()]
 
     # ── Métricas ──────────────────────────────────────────────────────────────
-    st.subheader(
-        f"📊 Resultados — {nombre} · Densidad {int(float(densidad)*100)}% · Salario ${sal_mensual:,.2f}/mes"
-    )
+    st.subheader(f"📊 Resultados")
+    st.caption(
+    f"{nombre} · Densidad {int(float(densidad)*100)}% · Salario ${sal_mensual:,.2f}/mes"
+        )           
     c1, c2, c3 = st.columns(3)
     c1.metric("Mejor tasa de reemplazo", f"{best['Tasa de Reemplazo']:.2%}")
     c2.metric("Edad óptima", str(int(best["Edad"])))
@@ -186,63 +187,65 @@ Calcula la **pensión mensual**, la **tasa de reemplazo**  y la **tasa acumulada
     st.divider()
 
     # ── Detalle paso a paso ───────────────────────────────────────────────────
-    st.subheader("🔍 Detalle paso a paso")
-    edad_sel = st.selectbox(
-        "Selecciona la edad de retiro:",
-        list(range(int(min_age), int(max_age) + 1)),
-        index=int(max_age - min_age),
-    )
+#    st.subheader("🔍 Detalle paso a paso")
+#    edad_sel = st.selectbox(
+#        "Selecciona la edad de retiro:",
+#        list(range(int(min_age), int(max_age) + 1)),
+#        index=int(max_age - min_age),
+#    )
+#
+#    det = calcular_pension_lss1973(
+#        edad_actual=int(edad_actual),
+#        salario_diario_avg=float(sal_diario),
+#        semanas_cotizadas=int(semanas_cot),
+#        edad_retiro=int(edad_sel),
+#        densidad=float(densidad),
+#        pct_conyuge=float(pct_conyuge),
+#        pct_hijos_total=float(pct_hijos),
+#        pct_art14=float(pct_art14),
+#        uma_diaria=float(uma_diaria),
+#        include_existing=bool(include_existing),
+#    )
+#
+#    pasos = [
+#        ("Paso 0", "Edad actual del trabajador", str(int(edad_actual))),
+#        ("", "Semanas cotizadas actualmente", f"{int(semanas_cot):,}"),
+#        ("Paso 1", "Salario diario promedio 5 años", f"${float(sal_diario):,.4f}"),
+#        ("", "Salario mensual promedio (C6 = C5×30)", f"${float(sal_diario)*30:,.2f}"),
+#        ("Paso 2", "Semanas futuras: INT((edad_retiro−edad)×52×densidad) [I4]", f"{det['sem_futuras']:,}"),
+#        ("", "Semanas existentes (I3)", f"{det['sem_existentes']:,}"),
+#        ("", "Total semanas (I5 = I3+I4)", f"{det['total_semanas']:,}"),
+#        ("", "Semanas en exceso (C8 = I5−500)", f"{det['semanas_exceso']:,.4f}"),
+#        ("", "Años en exceso exactos (C9 = C8/52)", f"{det['anos_exacto']:,.4f}"),
+#        ("", "Años en exceso redondeados (C10)", f"{det['anos_redondeado']:.1f}"),
+#        ("Paso 3", "UMA diaria vigente (C12)", f"${float(uma_diaria):,.2f}"),
+#        ("", "Cociente sal/UMA (C13 = C5/C12)", f"{det['cociente_sal_uma']:,.4f}"),
+#        ("Paso 4", "% Cuantía básica según tabla (C16)", f"{det['pct_cuantia_basica']:.4f}"),
+#        ("", "% Incremento anual según tabla (C17)", f"{det['pct_incremento']:.4f}"),
+#        ("Paso 5", "Cuantía básica diaria (C19 = C16×C5)", f"${det['cuantia_basica_diaria']:,.4f}"),
+#        ("", "Cuantía básica anual (C20 = C19×365)", f"${det['cuantia_basica_anual']:,.2f}"),
+#        ("Paso 6", "Incremento diario por años (C22 = C5×C17×C10)", f"${det['incr_diario']:,.4f}"),
+#        ("", "Incremento anual (C23 = C22×365)", f"${det['incr_anual']:,.2f}"),
+#        ("Paso 7", "Cuantía base diaria (C25 = C19+C22)", f"${det['cuantia_base_diaria']:,.4f}"),
+#        ("", "Cuantía base anual (C26 = C20+C23)", f"${det['cuantia_base_anual']:,.2f}"),
+#        ("Paso 8", f"Asignación cónyuge/soledad: {float(pct_conyuge):.0%}", f"{float(pct_conyuge):.0%}"),
+#        ("Paso 9", f"Asignación hijos ({int(n_hijos)} × 10%)", f"{float(pct_hijos):.0%}"),
+#        ("Paso 10", "Art. 14° transitorio decreto 20/12/2001", f"{float(pct_art14):.0%}"),
+#        ("Paso 11", "Factor total (1+P8)×(1+P9)×(1+P10)", f"{det['factor_familiar']:.6f}"),
+#        ("", "Pensión base diaria (C35 = C25×factor)", f"${det['pension_base_diaria']:,.4f}"),
+#        ("Paso 12", f"% según edad {int(edad_sel)} años (C38)", f"{det['pct_edad']:.0%}"),
+#        ("", "Pensión diaria bruta (C39 = C38×C35)", f"${det['pension_diaria_raw']:,.4f}"),
+#        ("", "Cota inferior: UMA diaria (C42)", f"${det['cota_inferior']:,.2f}"),
+#        ("", "Cota superior: 100%×salario diario (C41)", f"${det['cota_superior']:,.2f}"),
+#        ("", "Pensión diaria (C44) — clamp", f"${det['pension_diaria']:,.4f}"),
+#        ("", "Pensión mensual (C45 = C44×365/12)", f"${det['pension_mensual']:,.2f}"),
+#        ("Paso 13", "Tasa de reemplazo (C49 = C45 / (C5×30))", f"{det['tasa_reemplazo']:.4%}"),
+#   ]
+#
+#    st.dataframe(pd.DataFrame(pasos, columns=["Paso", "Concepto", "Valor"]), use_container_width=True, hide_index=True)
 
-    det = calcular_pension_lss1973(
-        edad_actual=int(edad_actual),
-        salario_diario_avg=float(sal_diario),
-        semanas_cotizadas=int(semanas_cot),
-        edad_retiro=int(edad_sel),
-        densidad=float(densidad),
-        pct_conyuge=float(pct_conyuge),
-        pct_hijos_total=float(pct_hijos),
-        pct_art14=float(pct_art14),
-        uma_diaria=float(uma_diaria),
-        include_existing=bool(include_existing),
-    )
 
-    pasos = [
-        ("Paso 0", "Edad actual del trabajador", str(int(edad_actual))),
-        ("", "Semanas cotizadas actualmente", f"{int(semanas_cot):,}"),
-        ("Paso 1", "Salario diario promedio 5 años", f"${float(sal_diario):,.4f}"),
-        ("", "Salario mensual promedio (C6 = C5×30)", f"${float(sal_diario)*30:,.2f}"),
-        ("Paso 2", "Semanas futuras: INT((edad_retiro−edad)×52×densidad) [I4]", f"{det['sem_futuras']:,}"),
-        ("", "Semanas existentes (I3)", f"{det['sem_existentes']:,}"),
-        ("", "Total semanas (I5 = I3+I4)", f"{det['total_semanas']:,}"),
-        ("", "Semanas en exceso (C8 = I5−500)", f"{det['semanas_exceso']:,.4f}"),
-        ("", "Años en exceso exactos (C9 = C8/52)", f"{det['anos_exacto']:,.4f}"),
-        ("", "Años en exceso redondeados (C10)", f"{det['anos_redondeado']:.1f}"),
-        ("Paso 3", "UMA diaria vigente (C12)", f"${float(uma_diaria):,.2f}"),
-        ("", "Cociente sal/UMA (C13 = C5/C12)", f"{det['cociente_sal_uma']:,.4f}"),
-        ("Paso 4", "% Cuantía básica según tabla (C16)", f"{det['pct_cuantia_basica']:.4f}"),
-        ("", "% Incremento anual según tabla (C17)", f"{det['pct_incremento']:.4f}"),
-        ("Paso 5", "Cuantía básica diaria (C19 = C16×C5)", f"${det['cuantia_basica_diaria']:,.4f}"),
-        ("", "Cuantía básica anual (C20 = C19×365)", f"${det['cuantia_basica_anual']:,.2f}"),
-        ("Paso 6", "Incremento diario por años (C22 = C5×C17×C10)", f"${det['incr_diario']:,.4f}"),
-        ("", "Incremento anual (C23 = C22×365)", f"${det['incr_anual']:,.2f}"),
-        ("Paso 7", "Cuantía base diaria (C25 = C19+C22)", f"${det['cuantia_base_diaria']:,.4f}"),
-        ("", "Cuantía base anual (C26 = C20+C23)", f"${det['cuantia_base_anual']:,.2f}"),
-        ("Paso 8", f"Asignación cónyuge/soledad: {float(pct_conyuge):.0%}", f"{float(pct_conyuge):.0%}"),
-        ("Paso 9", f"Asignación hijos ({int(n_hijos)} × 10%)", f"{float(pct_hijos):.0%}"),
-        ("Paso 10", "Art. 14° transitorio decreto 20/12/2001", f"{float(pct_art14):.0%}"),
-        ("Paso 11", "Factor total (1+P8)×(1+P9)×(1+P10)", f"{det['factor_familiar']:.6f}"),
-        ("", "Pensión base diaria (C35 = C25×factor)", f"${det['pension_base_diaria']:,.4f}"),
-        ("Paso 12", f"% según edad {int(edad_sel)} años (C38)", f"{det['pct_edad']:.0%}"),
-        ("", "Pensión diaria bruta (C39 = C38×C35)", f"${det['pension_diaria_raw']:,.4f}"),
-        ("", "Cota inferior: UMA diaria (C42)", f"${det['cota_inferior']:,.2f}"),
-        ("", "Cota superior: 100%×salario diario (C41)", f"${det['cota_superior']:,.2f}"),
-        ("", "Pensión diaria (C44) — clamp", f"${det['pension_diaria']:,.4f}"),
-        ("", "Pensión mensual (C45 = C44×365/12)", f"${det['pension_mensual']:,.2f}"),
-        ("Paso 13", "Tasa de reemplazo (C49 = C45 / (C5×30))", f"{det['tasa_reemplazo']:.4%}"),
-    ]
-
-    st.dataframe(pd.DataFrame(pasos, columns=["Paso", "Concepto", "Valor"]), use_container_width=True, hide_index=True)
-
+# ── Análisis e interpretación ───────────────────────────────────────────
     with st.expander("💬 Análisis e interpretación"):
         delta_medio = df["Δ Marginal (pp)"].dropna().mean()
         rr_min = df.iloc[0]
