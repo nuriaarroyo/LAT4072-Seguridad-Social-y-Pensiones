@@ -28,50 +28,88 @@ def render():
 """
         )
 
-
-
     col1, col2 = st.columns([1, 1], gap="large")
-    
+
     # =========================
     # ENTRADAS (col1)
     # =========================
     with col1:
         st.subheader("Entradas")
 
-        #with st.form("form_lss97", border=False):
+        # =====================================
+        # FUERA DEL FORM: UMA + salario sincronizado
+        # =====================================
+        with st.expander("💼 Salario base de cotización", expanded=True):
+            c1, c2, c3 = st.columns(3)
+
+            with c1:
+                uma_mxn = st.number_input(
+                    "UMA mensual [MXN]",
+                    min_value=1.0,
+                    value=3566.22,
+                    step=1.0,
+                )
+
+            if "sbc_uma" not in st.session_state:
+                st.session_state.sbc_uma = 5.0
+
+            if "salary_monthly" not in st.session_state:
+                st.session_state.salary_monthly = float(st.session_state.sbc_uma * uma_mxn)
+
+            if "last_uma_mxn" not in st.session_state:
+                st.session_state.last_uma_mxn = float(uma_mxn)
+
+            if float(st.session_state.last_uma_mxn) != float(uma_mxn):
+                st.session_state.salary_monthly = float(st.session_state.sbc_uma * uma_mxn)
+                st.session_state.last_uma_mxn = float(uma_mxn)
+
+            def sync_from_uma():
+                st.session_state.salary_monthly = float(st.session_state.sbc_uma * uma_mxn)
+
+            def sync_from_mxn():
+                st.session_state.sbc_uma = float(st.session_state.salary_monthly / uma_mxn)
+
+            with c2:
+                st.slider(
+                    "SBC mensual [UMA]",
+                    min_value=1.0,
+                    max_value=25.0,
+                    step=0.1,
+                    key="sbc_uma",
+                    on_change=sync_from_uma,
+                )
+
+            with c3:
+                st.number_input(
+                    "SBC mensual [MXN]",
+                    min_value=float(1.0 * uma_mxn),
+                    max_value=float(25.0 * uma_mxn),
+                    step=100.0,
+                    key="salary_monthly",
+                    on_change=sync_from_mxn,
+                )
+
+            sbc_uma = float(st.session_state.sbc_uma)
+            salary_monthly = float(st.session_state.salary_monthly)
+
+            st.caption(
+                f"SBC actual: {sbc_uma:.4f} UMA = $ {salary_monthly:,.2f} MXN"
+            )
+
+        # =====================================
+        # DENTRO DEL FORM: resto de inputs
+        # =====================================
+        with st.form("form_lss97", border=False):
             with st.expander("⚙️ Supuestos base", expanded=False):
-                c1, c2, c3 = st.columns(3)
+                c1, c2 = st.columns(2)
                 with c1:
-                    uma_mxn = st.number_input(
-                        "UMA mensual [MXN]",
-                        min_value=1.0,
-                        value=3566.22,
-                        step=1.0,
-                    )
-
-                                    # Inicialización y sincronización de salario <-> UMA
-                    if "sbc_uma" not in st.session_state:
-                        st.session_state.sbc_uma = 5.0
-
-                    if "salary_monthly" not in st.session_state:
-                        st.session_state.salary_monthly = float(st.session_state.sbc_uma * uma_mxn)
-
-                    if "last_uma_mxn" not in st.session_state:
-                        st.session_state.last_uma_mxn = float(uma_mxn)
-
-                    # Si cambia la UMA, recalcula el salario en MXN a partir del valor actual en UMA
-                    if float(st.session_state.last_uma_mxn) != float(uma_mxn):
-                        st.session_state.salary_monthly = float(st.session_state.sbc_uma * uma_mxn)
-                        st.session_state.last_uma_mxn = float(uma_mxn)
-                with c2:
                     udi_mxn = st.number_input(
                         "UDI [MXN]",
                         min_value=0.0001,
                         value=8.50,
                         step=0.01,
                     )
-            with st.form("form_lss97", border=False):
-                with c3:
+                with c2:
                     year_now = st.number_input(
                         "Año actual",
                         min_value=2021,
@@ -105,53 +143,9 @@ def render():
                         index=0,
                     )
 
-            with st.expander("💼 Salario e historial", expanded=True):
+            with st.expander("📈 Ahorro y crecimiento", expanded=True):
                 c1, c2 = st.columns(2)
-
-                
-
                 with c1:
-                    sbc_uma = st.slider(
-                        "Salario base de cotización mensual [UMA]",
-                        min_value=1.0,
-                        max_value=25.0,
-                        value=float(st.session_state.sbc_uma),
-                        step=0.1,
-                    )
-
-                    salary_monthly = st.number_input(
-                        "Salario base de cotización mensual [MXN]",
-                        min_value=float(1.0 * uma_mxn),
-                        max_value=float(25.0 * uma_mxn),
-                        value=float(st.session_state.salary_monthly),
-                        step=100.0,
-                    )
-
-                    # Resolver sincronización manual dentro del form
-                    # Si el usuario movió UMA, actualizamos MXN
-                    if abs(float(sbc_uma) - float(st.session_state.sbc_uma)) > 1e-9:
-                        st.session_state.sbc_uma = float(sbc_uma)
-                        st.session_state.salary_monthly = float(sbc_uma * uma_mxn)
-                        salary_monthly = float(st.session_state.salary_monthly)
-
-                    # Si el usuario editó MXN, actualizamos UMA
-                    elif abs(float(salary_monthly) - float(st.session_state.salary_monthly)) > 1e-9:
-                        st.session_state.salary_monthly = float(salary_monthly)
-                        st.session_state.sbc_uma = float(salary_monthly / uma_mxn)
-                        sbc_uma = float(st.session_state.sbc_uma)
-
-                    else:
-                        st.session_state.sbc_uma = float(sbc_uma)
-                        st.session_state.salary_monthly = float(salary_monthly)
-
-                    sbc_uma = float(st.session_state.sbc_uma)
-                    salary_monthly = float(st.session_state.salary_monthly)
-
-                    st.caption(
-                        f"SBC mensual equivalente actual: $ {salary_monthly:,.2f} MXN "
-                        f"({sbc_uma:.4f} UMA)"
-                    )
-                with c2:
                     vol_actual = st.slider(
                         "Tasa de contribución voluntaria actual",
                         min_value=0.0,
@@ -159,6 +153,7 @@ def render():
                         value=0.0,
                         step=0.01,
                     )
+                with c2:
                     salary_growth_annual = st.number_input(
                         "Crecimiento salarial real anual",
                         min_value=0.0,
@@ -212,7 +207,6 @@ def render():
             st.info("Ingresa valores y presiona **Calcular**.")
             return
 
-        # ---------- helpers ----------
         def mxn(x: float) -> str:
             return f"$ {x:,.2f}"
 
@@ -222,12 +216,10 @@ def render():
         def udi(x_mxn: float, udi_mxn_: float) -> float:
             return x_mxn / udi_mxn_ if udi_mxn_ > 0 else np.nan
 
-        # ---------- validation ----------
         if exp_retirement_age <= age_now:
             st.error("La edad esperada de jubilación debe ser mayor que la edad actual.")
             return
 
-        # ---------- assumptions / overrides ----------
         gender_core = "male" if gender_ui == "Masculino" else "female"
 
         overrides = {
@@ -241,7 +233,6 @@ def render():
         if float(saldo_actual) > 0.0:
             overrides["saldo_actual"] = float(saldo_actual)
 
-        # ---------- trayectoria salarial ----------
         traj_sal = trayectoria_salarial(
             age_now=int(age_now),
             age_ret=int(exp_retirement_age),
@@ -250,7 +241,6 @@ def render():
             year_now=int(year_now),
         )
 
-        # salario final al retiro
         if "salary_monthly" in traj_sal.columns:
             salary_final = float(traj_sal["salary_monthly"].iloc[-1])
         elif "sbc_monthly" in traj_sal.columns:
@@ -261,7 +251,6 @@ def render():
         years_to_ret = int(exp_retirement_age - age_now)
         growth_factor = salary_final / float(salary_monthly) if float(salary_monthly) > 0 else np.nan
 
-        # ---------- 1) Escenario ACTUAL ----------
         out_actual = replacement_rate_lss1997(
             int(age_now),
             float(salary_monthly),
@@ -269,7 +258,6 @@ def render():
             assumptions=overrides,
         )
 
-        # ---------- 2) Solver y escenario REQUERIDO ----------
         sol = solve_voluntary_rate_for_target(
             age_now=int(age_now),
             salary_monthly=float(salary_monthly),
@@ -286,13 +274,11 @@ def render():
             assumptions=overrides,
         )
 
-        # ---------- 3) Aportes (display) ----------
         contrib_vol_mxn_mes_actual = float(salary_monthly) * float(vol_actual)
         contrib_vol_mxn_mes_req = float(salary_monthly) * float(sol["voluntary_rate"])
         delta_contrib_mxn_mes = contrib_vol_mxn_mes_req - contrib_vol_mxn_mes_actual
         delta_rate = float(sol["voluntary_rate"]) - float(vol_actual)
 
-        # ---------- 4) Pensiones implícitas vs modelo ----------
         pension_target_on_final_salary = float(target_rr) * float(salary_final)
 
         rr_actual_on_final = (
@@ -307,7 +293,6 @@ def render():
         pension_gap_req_vs_target = float(out_req["pension_monthly"]) - pension_target_on_final_salary
         pension_gap_actual_vs_target = float(out_actual["pension_monthly"]) - pension_target_on_final_salary
 
-        # ---------- métricas top ----------
         st.markdown("### Resumen rápido")
         m1, m2 = st.columns(2)
         with m1:
@@ -384,7 +369,6 @@ def render():
         with a3:
             st.metric("Brecha actual - objetivo", mxn(pension_gap_actual_vs_target))
 
-        # ---------- diagnóstico rápido ----------
         with st.expander("Diagnóstico de posible inflación en la pensión", expanded=True):
             st.write(
                 """
@@ -397,11 +381,7 @@ def render():
    Es la que devuelve tu `replacement_rate_lss1997()` usando la tasa voluntaria hallada por el solver.
 
 3. **RR implícita sobre salario final**  
-   Se calcula como:
-   \[
-   \text{RR implícita sobre salario final} =
-   \frac{\text{Pensión mensual del modelo}}{\text{Salario mensual final}}
-   \]
+   Se calcula como pensión mensual del modelo / salario mensual final.
    Si esta RR implícita es muy distinta a la RR objetivo, entonces la base salarial de tu core
    probablemente no coincide con el salario final que tú estás usando como referencia visual.
 """
@@ -417,26 +397,6 @@ def render():
             with d4:
                 st.metric("Pensión modelo", mxn(float(out_req["pension_monthly"])))
 
-            if float(out_req["pension_monthly"]) > pension_target_on_final_salary * 1.15:
-                st.warning(
-                    "La pensión del modelo está materialmente por encima de la pensión objetivo "
-                    "calculada como RR objetivo × salario final. "
-                    "Revisa sobre todo: `salary_growth_annual`, `annual_return_used`, "
-                    "`saldo_actual`, semanas acumuladas y la base salarial contra la que el core define la RR."
-                )
-            elif float(out_req["pension_monthly"]) < pension_target_on_final_salary * 0.85:
-                st.warning(
-                    "La pensión del modelo está materialmente por debajo de la pensión objetivo "
-                    "sobre salario final. Puede que la RR del core no esté referida al salario final, "
-                    "o que los supuestos de acumulación no alcancen esa meta."
-                )
-            else:
-                st.success(
-                    "La pensión del modelo está razonablemente alineada con la pensión objetivo "
-                    "sobre salario final."
-                )
-
-        # ---------- tabla resumen ----------
         summary = pd.DataFrame(
             [
                 {
@@ -510,9 +470,6 @@ def render():
                 }
             )
 
-    # =========================
-    # CURVA (full width)
-    # =========================
     st.subheader("Curva: RR vs. contribución voluntaria")
 
     if v_max <= v_min:
@@ -546,17 +503,8 @@ def render():
         title_x=0.5,
     )
 
-    fig.add_vline(
-        x=float(vol_actual),
-        line_width=2,
-        line_dash="dot",
-    )
-
-    fig.add_vline(
-        x=float(sol["voluntary_rate"]),
-        line_width=2,
-        line_dash="dash",
-    )
+    fig.add_vline(x=float(vol_actual), line_width=2, line_dash="dot")
+    fig.add_vline(x=float(sol["voluntary_rate"]), line_width=2, line_dash="dash")
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -574,9 +522,6 @@ def render():
             "semanas cotizadas, crecimiento salarial y el impacto del supuesto biométrico."
         )
 
-    # =========================
-    # TRAYECTORIA SALARIAL Y DE PENSIÓN
-    # =========================
     st.subheader("Trayectoria salarial y de pensión")
 
     traj_pen_actual = trayectoria_pension(
