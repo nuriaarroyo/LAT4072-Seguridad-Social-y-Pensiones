@@ -24,6 +24,7 @@ def render():
 - Encuentra la tasa de ahorro voluntario adicional necesaria para una RR objetivo
 - Grafica la RR contra diferentes tasas de contribución voluntaria
 - Muestra la trayectoria salarial hasta el retiro y la trayectoria de la pensión hasta la muerte esperada
+- Compara la pensión del modelo contra la pensión implícita de la RR objetivo sobre el salario final
 """
         )
 
@@ -98,7 +99,7 @@ def render():
                         step=0.1,
                     )
                     salary_monthly = float(sbc_uma * uma_mxn)
-                    st.caption(f"SBC mensual equivalente: $ {salary_monthly:,.2f} MXN")
+                    st.caption(f"SBC mensual equivalente actual: $ {salary_monthly:,.2f} MXN")
 
                 with c2:
                     vol_actual = st.slider(
@@ -111,7 +112,7 @@ def render():
                     salary_growth_annual = st.number_input(
                         "Crecimiento salarial real anual",
                         min_value=0.0,
-                        max_value=0.05,
+                        max_value=0.08,
                         value=0.015,
                         step=0.005,
                         format="%.3f",
@@ -171,6 +172,11 @@ def render():
         def udi(x_mxn: float, udi_mxn_: float) -> float:
             return x_mxn / udi_mxn_ if udi_mxn_ > 0 else np.nan
 
+        # ---------- validation ----------
+        if exp_retirement_age <= age_now:
+            st.error("La edad esperada de jubilación debe ser mayor que la edad actual.")
+            return
+
         # ---------- assumptions / overrides ----------
         gender_core = "male" if gender_ui == "Masculino" else "female"
 
@@ -184,6 +190,26 @@ def render():
 
         if float(saldo_actual) > 0.0:
             overrides["saldo_actual"] = float(saldo_actual)
+
+        # ---------- trayectoria salarial ----------
+        traj_sal = trayectoria_salarial(
+            age_now=int(age_now),
+            age_ret=int(exp_retirement_age),
+            salary_monthly=float(salary_monthly),
+            salary_growth_annual=float(salary_growth_annual),
+            year_now=int(year_now),
+        )
+
+        # salario final al retiro
+        if "salary_monthly" in traj_sal.columns:
+            salary_final = float(traj_sal["salary_monthly"].iloc[-1])
+        elif "sbc_monthly" in traj_sal.columns:
+            salary_final = float(traj_sal["sbc_monthly"].iloc[-1])
+        else:
+            salary_final = float(salary_monthly)
+
+        years_to_ret = int(exp_retirement_age - age_now)
+        growth_factor = salary_final / float(salary_monthly) if float(salary_monthly) > 0 else np.nan
 
         # ---------- 1) Escenario ACTUAL ----------
         out_actual = replacement_rate_lss1997(
@@ -216,18 +242,51 @@ def render():
         delta_contrib_mxn_mes = contrib_vol_mxn_mes_req - contrib_vol_mxn_mes_actual
         delta_rate = float(sol["voluntary_rate"]) - float(vol_actual)
 
+        # ---------- 4) Pensiones implícitas vs modelo ----------
+        pension_target_on_final_salary = float(target_rr) * float(salary_final)
+
+        rr_actual_on_final = (
+            float(out_actual["pension_monthly"]) / float(salary_final)
+            if salary_final > 0 else np.nan
+        )
+        rr_req_on_final = (
+            float(out_req["pension_monthly"]) / float(salary_final)
+            if salary_final > 0 else np.nan
+        )
+
+        pension_gap_req_vs_target = float(out_req["pension_monthly"]) - pension_target_on_final_salary
+        pension_gap_actual_vs_target = float(out_actual["pension_monthly"]) - pension_target_on_final_salary
+
         # ---------- métricas top ----------
-        st.metric("RR (voluntaria actual)", pct(float(out_actual["replacement_rate"])))
-        st.metric("Pensión (voluntaria actual)", mxn(float(out_actual["pension_monthly"])))
+        st.markdown("### Resumen rápido")
+        m1, m2 = st.columns(2)
+        with m1:
+            st.metric("RR (voluntaria actual)", pct(float(out_actual["replacement_rate"])))
+        with m2:
+            st.metric("Pensión (voluntaria actual)", mxn(float(out_actual["pension_monthly"])))
 
         st.divider()
+
+        st.markdown("### Salario de referencia")
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            st.metric("Salario mensual actual", mxn(float(salary_monthly)))
+        with s2:
+            st.metric("Salario mensual final", mxn(float(salary_final)))
+        with s3:
+            st.metric("Multiplicador salarial", f"{growth_factor:.2f}x")
+
+        st.caption(
+            f"Años al retiro: {years_to_ret} | "
+            f"Crecimiento salarial real anual supuesto: {salary_growth_annual:.2%}"
+        )
 
         st.markdown("### Contribución voluntaria")
         cA, cB, cC = st.columns(3)
         with cA:
             st.metric("Actual", pct(float(vol_actual)))
         with cB:
-            st.metric("Requerida (RR objetivo)", pct(float(sol["voluntary_rate"])))
+            st.metric("Requerida (solver)", pct(float(sol['voluntary_rate'])))
         with cC:
             st.metric("Incremento", f"{delta_rate * 100:.2f} pp")
 
@@ -249,20 +308,83 @@ def render():
         with u3:
             st.metric("Incremento (UDI/mes)", f"{udi(delta_contrib_mxn_mes, float(udi_mxn)):,.2f}")
 
-        st.markdown("### Resultados del modelo (RR y pensión)")
+        st.markdown("### RR y pensión: modelo vs referencia sobre salario final")
         r1, r2, r3 = st.columns(3)
         with r1:
-            st.metric("RR actual", pct(float(out_actual["replacement_rate"])))
-        with r2:
             st.metric("RR objetivo", pct(float(target_rr)))
+        with r2:
+            st.metric("RR modelo requerida", pct(float(out_req["replacement_rate"])))
         with r3:
-            st.metric("RR requerido", pct(float(out_req["replacement_rate"])))
+            st.metric("RR implícita req. / salario final", pct(float(rr_req_on_final)))
 
-        p1, p2 = st.columns(2)
+        p1, p2, p3 = st.columns(3)
         with p1:
-            st.metric("Pensión actual (MXN/mes)", mxn(float(out_actual["pension_monthly"])))
+            st.metric("Pensión objetivo = RR obj × salario final", mxn(pension_target_on_final_salary))
         with p2:
-            st.metric("Pensión requerida (MXN/mes)", mxn(float(out_req["pension_monthly"])))
+            st.metric("Pensión requerida (modelo)", mxn(float(out_req["pension_monthly"])))
+        with p3:
+            st.metric("Brecha modelo - objetivo", mxn(pension_gap_req_vs_target))
+
+        st.markdown("### Escenario actual sobre salario final")
+        a1, a2, a3 = st.columns(3)
+        with a1:
+            st.metric("Pensión actual", mxn(float(out_actual["pension_monthly"])))
+        with a2:
+            st.metric("RR implícita actual / salario final", pct(float(rr_actual_on_final)))
+        with a3:
+            st.metric("Brecha actual - objetivo", mxn(pension_gap_actual_vs_target))
+
+        # ---------- diagnóstico rápido ----------
+        with st.expander("Diagnóstico de posible inflación en la pensión", expanded=True):
+            st.write(
+                """
+**Cómo leer estas cifras:**
+
+1. **Pensión objetivo = RR objetivo × salario final**  
+   Esta es la pensión que uno esperaría si la RR se interpretara literalmente sobre el salario al retiro.
+
+2. **Pensión requerida (modelo)**  
+   Es la que devuelve tu `replacement_rate_lss1997()` usando la tasa voluntaria hallada por el solver.
+
+3. **RR implícita sobre salario final**  
+   Se calcula como:
+   \[
+   \text{RR implícita sobre salario final} =
+   \frac{\text{Pensión mensual del modelo}}{\text{Salario mensual final}}
+   \]
+   Si esta RR implícita es muy distinta a la RR objetivo, entonces la base salarial de tu core
+   probablemente no coincide con el salario final que tú estás usando como referencia visual.
+"""
+            )
+
+            d1, d2, d3, d4 = st.columns(4)
+            with d1:
+                st.metric("Salario actual", mxn(float(salary_monthly)))
+            with d2:
+                st.metric("Salario final", mxn(float(salary_final)))
+            with d3:
+                st.metric("Pensión objetivo", mxn(pension_target_on_final_salary))
+            with d4:
+                st.metric("Pensión modelo", mxn(float(out_req["pension_monthly"])))
+
+            if float(out_req["pension_monthly"]) > pension_target_on_final_salary * 1.15:
+                st.warning(
+                    "La pensión del modelo está materialmente por encima de la pensión objetivo "
+                    "calculada como RR objetivo × salario final. "
+                    "Revisa sobre todo: `salary_growth_annual`, `annual_return_used`, "
+                    "`saldo_actual`, semanas acumuladas y la base salarial contra la que el core define la RR."
+                )
+            elif float(out_req["pension_monthly"]) < pension_target_on_final_salary * 0.85:
+                st.warning(
+                    "La pensión del modelo está materialmente por debajo de la pensión objetivo "
+                    "sobre salario final. Puede que la RR del core no esté referida al salario final, "
+                    "o que los supuestos de acumulación no alcancen esa meta."
+                )
+            else:
+                st.success(
+                    "La pensión del modelo está razonablemente alineada con la pensión objetivo "
+                    "sobre salario final."
+                )
 
         # ---------- tabla resumen ----------
         summary = pd.DataFrame(
@@ -272,37 +394,44 @@ def render():
                     "Tasa voluntaria": float(vol_actual),
                     "Aporte vol (MXN/mes)": contrib_vol_mxn_mes_actual,
                     "Aporte vol (UDI/mes)": udi(contrib_vol_mxn_mes_actual, float(udi_mxn)),
-                    "RR": float(out_actual["replacement_rate"]),
-                    "Pensión (MXN/mes)": float(out_actual["pension_monthly"]),
-                    "Pensión (UDI/mes)": udi(float(out_actual["pension_monthly"]), float(udi_mxn)),
+                    "RR modelo": float(out_actual["replacement_rate"]),
+                    "Pensión modelo (MXN/mes)": float(out_actual["pension_monthly"]),
+                    "RR implícita sobre salario final": float(rr_actual_on_final),
+                    "Pensión objetivo sobre salario final (MXN/mes)": pension_target_on_final_salary,
+                    "Brecha vs objetivo (MXN/mes)": pension_gap_actual_vs_target,
                 },
                 {
                     "Escenario": "Requerido",
                     "Tasa voluntaria": float(sol["voluntary_rate"]),
                     "Aporte vol (MXN/mes)": contrib_vol_mxn_mes_req,
                     "Aporte vol (UDI/mes)": udi(contrib_vol_mxn_mes_req, float(udi_mxn)),
-                    "RR": float(out_req["replacement_rate"]),
-                    "Pensión (MXN/mes)": float(out_req["pension_monthly"]),
-                    "Pensión (UDI/mes)": udi(float(out_req["pension_monthly"]), float(udi_mxn)),
+                    "RR modelo": float(out_req["replacement_rate"]),
+                    "Pensión modelo (MXN/mes)": float(out_req["pension_monthly"]),
+                    "RR implícita sobre salario final": float(rr_req_on_final),
+                    "Pensión objetivo sobre salario final (MXN/mes)": pension_target_on_final_salary,
+                    "Brecha vs objetivo (MXN/mes)": pension_gap_req_vs_target,
                 },
             ]
         )
 
+        st.markdown("### Tabla resumen")
         st.dataframe(
             summary.style.format(
                 {
                     "Tasa voluntaria": "{:.2%}",
                     "Aporte vol (MXN/mes)": "$ {:,.2f}",
                     "Aporte vol (UDI/mes)": "{:,.2f}",
-                    "RR": "{:.2%}",
-                    "Pensión (MXN/mes)": "$ {:,.2f}",
-                    "Pensión (UDI/mes)": "{:,.2f}",
+                    "RR modelo": "{:.2%}",
+                    "Pensión modelo (MXN/mes)": "$ {:,.2f}",
+                    "RR implícita sobre salario final": "{:.2%}",
+                    "Pensión objetivo sobre salario final (MXN/mes)": "$ {:,.2f}",
+                    "Brecha vs objetivo (MXN/mes)": "$ {:,.2f}",
                 }
             ),
             use_container_width=True,
         )
 
-        with st.expander("Ver inputs usados (debug)", expanded=False):
+        with st.expander("Ver inputs y outputs usados (debug)", expanded=False):
             st.write(
                 {
                     "nombre": nombre,
@@ -312,11 +441,14 @@ def render():
                     "gender_core": gender_core,
                     "uma_mxn_ui": float(uma_mxn),
                     "sbc_uma": float(sbc_uma),
-                    "salary_monthly": float(salary_monthly),
+                    "salary_monthly_actual": float(salary_monthly),
+                    "salary_monthly_final": float(salary_final),
                     "salary_growth_annual": float(salary_growth_annual),
                     "weeks_now": int(weeks_now),
                     "saldo_actual": float(saldo_actual),
                     "target_rr": float(target_rr),
+                    "target_pension_on_final_salary": float(pension_target_on_final_salary),
+                    "vol_actual": float(vol_actual),
                     "v_min": float(v_min),
                     "v_max": float(v_max),
                     "n_pts": int(n_pts),
@@ -396,39 +528,44 @@ def render():
     # TRAYECTORIA SALARIAL Y DE PENSIÓN
     # =========================
     st.subheader("Trayectoria salarial y de pensión")
-    st.write(
-        "Se muestra la trayectoria salarial hasta el retiro y la trayectoria de la pensión desde el retiro hasta la muerte esperada."
-    )
 
-    traj_sal = trayectoria_salarial(
-        age_now=age_now,
-        age_ret=exp_retirement_age,
-        salary_monthly=salary_monthly,
-        salary_growth_annual=salary_growth_annual,
-        year_now=year_now,
-    )
-
-    traj_pen = trayectoria_pension(
-        pension_monthly=out_actual["pension_monthly"],
-        age_ret=exp_retirement_age,
+    traj_pen_actual = trayectoria_pension(
+        pension_monthly=float(out_actual["pension_monthly"]),
+        age_ret=int(exp_retirement_age),
         gender=gender_core,
         year_ret=out_actual["year_ret_real"],
+    )
+
+    traj_pen_req = trayectoria_pension(
+        pension_monthly=float(out_req["pension_monthly"]),
+        age_ret=int(exp_retirement_age),
+        gender=gender_core,
+        year_ret=out_req["year_ret_real"],
     )
 
     fig_sal = px.line(
         traj_sal,
         x="age",
-        y=["salary_monthly", "sbc_monthly"],
+        y=[c for c in ["salary_monthly", "sbc_monthly"] if c in traj_sal.columns],
         labels={"value": "Monto mensual", "age": "Edad", "variable": "Serie"},
         title="Trayectoria salarial y salario base de cotización",
     )
     st.plotly_chart(fig_sal, use_container_width=True)
 
-    fig_pen = px.line(
-        traj_pen,
+    fig_pen_actual = px.line(
+        traj_pen_actual,
         x="age",
         y="pension_monthly",
         labels={"pension_monthly": "Pensión mensual", "age": "Edad"},
-        title="Pensión mensual esperada desde el retiro hasta la muerte esperada",
+        title="Pensión mensual esperada (escenario actual)",
     )
-    st.plotly_chart(fig_pen, use_container_width=True)
+    st.plotly_chart(fig_pen_actual, use_container_width=True)
+
+    fig_pen_req = px.line(
+        traj_pen_req,
+        x="age",
+        y="pension_monthly",
+        labels={"pension_monthly": "Pensión mensual", "age": "Edad"},
+        title="Pensión mensual esperada (escenario requerido por solver)",
+    )
+    st.plotly_chart(fig_pen_req, use_container_width=True)
