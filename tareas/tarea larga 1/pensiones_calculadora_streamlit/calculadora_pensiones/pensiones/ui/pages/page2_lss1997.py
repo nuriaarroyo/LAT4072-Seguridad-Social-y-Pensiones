@@ -35,6 +35,30 @@ def render():
         st.subheader("Entradas")
 
         with st.form("form_lss97", border=False):
+            with st.expander("⚙️ Supuestos base", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    uma_mxn = st.number_input(
+                        "UMA mensual [MXN]",
+                        min_value=1.0,
+                        value=3566.22,  # o el valor que uses
+                        step=1.0,
+                    )
+                with c2:
+                    udi_mxn = st.number_input(
+                        "UDI [MXN]",
+                        min_value=0.0001,
+                        value=8.50,
+                        step=0.01,
+                    )
+                with c3:
+                    year_now = st.number_input(
+                        "Año actual",
+                        min_value=2021,
+                        max_value=2100,
+                        value=2026,
+                        step=1,
+                    )
             with st.expander("👤 Biométricos del trabajador", expanded=True):
                 c1, c2 = st.columns(2)
                 with c1:
@@ -81,21 +105,24 @@ def render():
             with st.expander("💼 Salario e historial", expanded=True):
                 c1, c2 = st.columns(2)
                 with c1:
+                    sbc_uma = st.slider(
+                     "Salario base de cotización mensual [UMA]",
+                    min_value=1.0,
+                    max_value=25.0,
+                    value=5.0,
+                    step=0.1,
+                    )
+                    salary_monthly = float(sbc_uma * uma_mxn)
                     salary_monthly = st.slider(
                         "Salario mensual [MXN] (SBC)",
-                        min_value=0.0,
-                        max_value= 100000.0,
-                        value=20000.0,
+                        min_value=uma_mxn,
+                        max_value= uma_mxn * 25.0,
+                        value=salary_monthly,
                         step=100.0,
                     )
-                    salary_growth_annual = st.number_input(
-                        "Crecimiento salarial real anual",
-                        min_value=0.0,
-                        max_value=0.05,
-                        value=0.015,
-                        step=0.005,
-                    format="%.3f",
-                     )
+
+                    st.caption(f"SBC mensual equivalente: $ {salary_monthly:,.2f} MXN")
+                   
 
                     
                 with c2:
@@ -106,6 +133,14 @@ def render():
                         value=0.0,
                         step=0.01,
                     )
+                    salary_growth_annual = st.number_input(
+                        "Crecimiento salarial real anual",
+                        min_value=0.0,
+                        max_value=0.05,
+                        value=0.015,
+                        step=0.005,
+                    format="%.3f",
+                     )
 
             with st.expander("📈 Semanas y saldo", expanded=True):
                 c1, c2 = st.columns(2)
