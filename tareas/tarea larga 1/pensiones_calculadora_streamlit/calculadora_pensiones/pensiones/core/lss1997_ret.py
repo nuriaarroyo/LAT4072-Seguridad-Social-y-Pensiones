@@ -370,18 +370,38 @@ def _sex_key(gender: Any) -> str:
     return "male"
 
 
-def life_exp(age_ret: int, gender: Any) -> float:
+
+def life_exp_base_by_year(year_ref: int, gender: Any = "male") -> float:
+    sex = _sex_key(gender)
     """
     https://www.inegi.org.mx/app/tabulados/interactivos/?pxq=Mortalidad_Mortalidad_09_db78b87b-1e13-46d9-9adf-9c29fe345276
     """
-    sex = _sex_key(gender)
 
-    if sex == "male":
-        exp = 72.70 - float(age_ret)
-    else:        exp = 79.20 - float(age_ret)
+    table = {
+        2022: {"total": 75.2, "male": 72.1, "female": 78.5},
+        2023: {"total": 75.3, "male": 72.3, "female": 78.6},
+        2024: {"total": 75.5, "male": 72.4, "female": 78.9},
+        2025: {"total": 75.7, "male": 72.6, "female": 79.0},
+        2026: {"total": 75.9, "male": 72.7, "female": 79.2},
+    }
 
-    return float(exp)
+    if year_ref < 2022:
+        year_ref = 2022
+    elif year_ref > 2026:
+        year_ref = 2026
 
+    return float(table[int(year_ref)][sex])
+
+
+def life_exp(
+    age_ret: int,
+    gender: Any,
+    year_ref: int = 2026,
+    floor_years: float = 0.5,
+) -> float:
+    e0 = life_exp_base_by_year(int(year_ref), gender)
+    ex = float(e0 - float(age_ret))
+    return float(max(ex, floor_years))
 
 def pension_mensual_desde_sci(sci: float, age_ret: int, gender: Any) -> float:
     """
@@ -393,6 +413,25 @@ def pension_mensual_desde_sci(sci: float, age_ret: int, gender: Any) -> float:
     if ex <= 0:
         return 0.0
     return float(sci / (ex * 12.0))
+
+def pension_mensual_desde_sci(
+    sci: float,
+    age_ret: int,
+    gender: Any,
+    year_ref: int = 2026,
+    survival_premium_rate: float = 0.0,
+) -> float:
+    ex = life_exp(
+        age_ret=int(age_ret),
+        gender=gender,
+        year_ref=int(year_ref),
+    )
+
+    if ex <= 0:
+        return 0.0
+
+    sci_neto = float(sci) * (1.0 - float(survival_premium_rate))
+    return float(sci_neto / (ex * 12.0))
 
 
 # =============================================================================
@@ -461,11 +500,15 @@ def replacement_rate_lss1997(
     saldo_inicial=float(sci0),  
     )
 
+    survival_premium_rate = float(local_ASS.get("survival_premium_rate", 0.0))
+
     pension_R = pension_mensual_desde_sci(
-        sci=float(sci),
-        age_ret=int(exp_ret_age),
-        gender=gender,
-    )
+    sci=float(sci),
+    age_ret=int(exp_ret_age),
+    gender=gender,
+    year_ref=int(min(year_ret_real, 2026)),
+    survival_premium_rate=survival_premium_rate,
+)
 
     if ok:
         pg = pension_garantizada_desde_tabla(

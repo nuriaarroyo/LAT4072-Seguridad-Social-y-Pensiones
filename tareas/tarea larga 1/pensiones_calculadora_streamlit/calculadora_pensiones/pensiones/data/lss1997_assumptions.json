@@ -12,6 +12,7 @@
     "default_weeks_now": 0,
     "default_balance_now": 0.0,
     "default_salary_growth_annual": 0.015,
+    "survival_premium_rate": 0.0,
    
 
     "inflation_annual": 0.0547,
