@@ -23,7 +23,7 @@ def render() -> None:
     st.header("🏛️ LSS 1973 — Cesantía en Edad Avanzada y Vejez")
     st.caption(DISPLAY)
 
-    with st.expander("ℹ️ ¿Qué hace esta calculadora?", expanded=False):
+    with st.expander("💡 ¿Qué hace esta calculadora?", expanded=False):
         st.markdown(
             """
 Calcula la **pensión mensual** y la **tasa de reemplazo** bajo la **Ley del Seguro Social de 1973**,
@@ -37,14 +37,14 @@ siguiendo los 13 pasos del cálculo (misma lógica que tu Excel).
     with st.sidebar:
         pass
     
-    st.header("⚙️ Datos del trabajador")
+    st.header("👥 Datos del trabajador")
 
-    nombre = st.text_input("Nombre", value="Trabajador")
+    nombre = st.text_input("Nombre")
 
     st.subheader("Perfil laboral")
-    edad_actual = st.number_input("Edad actual", min_value=15, max_value=80, value=55, step=1)
+    edad_actual = st.number_input("Edad actual", min_value=15, max_value=80, step=1)
     semanas_cot = st.number_input(
-        "Semanas cotizadas actualmente", min_value=0, max_value=5000, value=650, step=1
+        "Semanas cotizadas actualmente", min_value=0, max_value=5000, step=1
     )
 
     st.subheader("Salario (Paso 1)")
@@ -61,20 +61,21 @@ siguiendo los 13 pasos del cálculo (misma lógica que tu Excel).
     st.subheader("Densidad de cotización")
     densidad = st.radio("Densidad", [0.80, 1.00], format_func=lambda x: f"{int(x*100)}%", horizontal=True)
 
-    include_existing = st.checkbox(
-        "Incluir semanas ya cotizadas (I3)",
-        value=True,
-        help=(
-            "100%DC incluye semanas existentes (I3=Carátula). "
-            "80%DC las deja en blanco (I3=0)."
-        ),
-    )
+
 
     st.subheader("Factores familiares / legales")
-    pct_conyuge = st.slider("Paso 8 — Cónyuge/Soledad (%)", 0, 30, 15, step=5) / 100
+    tiene_conyuge = st.checkbox("¿Tiene cónyuge?")
+    pct_conyuge = 0.15 if tiene_conyuge else 0.15
+    esta_sole = st.checkbox("¿Está solo?")
+    #pct_conyuge = st.slider("Paso 8 — Cónyuge/Soledad (%)", 0, 30, 15, step=5) / 100
     n_hijos = st.number_input("Paso 9 — Hijos en sistema educativo (≤25 años)", 0, 10, 0, step=1)
     pct_hijos = float(n_hijos) * 0.10
-    pct_art14 = st.slider("Paso 10 — Art. 14° transitorio (%)", 0, 20, 11, step=1) / 100
+    #pct_art14 = st.slider("Paso 10 — Art. 14° transitorio (%)", 0, 20, 11, step=1) / 100
+    
+
+
+
+
 
     st.subheader("UMA / SMGV")
     uma_diaria = st.number_input(
@@ -84,13 +85,13 @@ siguiendo los 13 pasos del cálculo (misma lógica que tu Excel).
         step=0.01,
     )
 
-    st.subheader("Rango de edades")
-    min_age = st.slider("Edad mínima", 60, 65, 60)
-    max_age = st.slider("Edad máxima", 60, 65, 65)
+    #st.subheader("Rango de edades")
+    #min_age = st.slider("Edad mínima", 60, 65, 60)
+    #max_age = st.slider("Edad máxima", 60, 65, 65)
 
-    if min_age > max_age:
-        st.error("La edad mínima no puede ser mayor que la máxima.")
-        return
+    #if min_age > max_age:
+    #    st.error("La edad mínima no puede ser mayor que la máxima.")
+     #   return
 
     st.divider()
     calcular = st.button("🔢 Calcular", type="primary", use_container_width=True)
