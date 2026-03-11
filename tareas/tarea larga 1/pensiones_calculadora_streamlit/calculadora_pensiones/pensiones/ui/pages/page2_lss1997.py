@@ -241,13 +241,9 @@ def render():
             year_now=int(year_now),
         )
 
-        if "salary_monthly" in traj_sal.columns:
-            salary_final = float(traj_sal["salary_monthly"].iloc[-1])
-        elif "sbc_monthly" in traj_sal.columns:
-            salary_final = float(traj_sal["sbc_monthly"].iloc[-1])
-        else:
-            salary_final = float(salary_monthly)
+        salary_final = float(out_actual["salary_retirement_monthly"])
 
+        
         years_to_ret = int(exp_retirement_age - age_now)
         growth_factor = salary_final / float(salary_monthly) if float(salary_monthly) > 0 else np.nan
 
