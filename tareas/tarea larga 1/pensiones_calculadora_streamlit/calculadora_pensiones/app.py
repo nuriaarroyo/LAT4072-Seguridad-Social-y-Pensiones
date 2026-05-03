@@ -6,7 +6,7 @@ import streamlit as st
 from pensiones.ui.pages.page2_lss1997 import render as render_lss1997
 from pensiones.ui.pages.page3_lss1973 import render as render_lss1973
 ### TAREA 2
-from pensiones.ui.pages.page4_tarea2 import render as render_tarea2
+from pensiones.ui.pages.page4_tarea2 import render as render_invalidez[cite: 2]
 
 
 st.set_page_config(
@@ -33,12 +33,10 @@ st.sidebar.code("pensiones/core\n pensiones/data\n plots/")
 
 if section.startswith("II)"):
     render_lss1997()
-#else:
-#    render_lss1973()
 elif section.startswith("IV)"):
     render_lss1973()
-elif section.startswith("V)"):
-    render_tarea2()
+else:
+    render_invalidez()[cite: 2]
 
 st.markdown("---")
 st.caption("Tip: llena las tablas legales en `pensiones/data/` y ajusta las funciones en `pensiones/core/`.")
