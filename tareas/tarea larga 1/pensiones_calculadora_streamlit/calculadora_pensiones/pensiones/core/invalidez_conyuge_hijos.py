@@ -316,3 +316,4 @@ def calcular_monto_constitutivo(
         "tasa_interes":     TASA_INTERES,
         "uma_diaria":       uma_diaria,
     }
+
