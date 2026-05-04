@@ -25,8 +25,7 @@ from pensiones.core.invalidez_conyuge_hijos import (
     INC, RECARGO_A, RECARGO_B, UMA_DIARIA,
 )
 
-def render():
-    # ── Página ─────────────────────────────────────────────────────────────────────
+# ── Página ─────────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="MCSI — MC10", page_icon="🏛️", layout="wide")
 
 with st.sidebar:
@@ -459,4 +458,4 @@ with st.expander("💬 Análisis e interpretación"):
 - PNSI = PBSI × FACBI ({facbi:.9f}) = **${r['pnsi']:,.2f}**  _(lab: 5,045,718)_
 - MCSI = (PNSI−{pv_val:.0f}) × (1+{rec_a:.0%})/(1−{rec_b:.0%}) = **${r['mcsi']:,.2f}**  _(lab: 5,197,090)_
 """)
-
+    
