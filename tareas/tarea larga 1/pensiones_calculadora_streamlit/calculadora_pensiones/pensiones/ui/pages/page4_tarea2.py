@@ -2,7 +2,7 @@
 app_invalidez_conyuge_hijos.py
 ===============================
 Streamlit — Calculadora de Monto Constitutivo
-Seguro de Invalidez · Inválido con cónyuge e hijos (mín. 4)
+Seguro de Invalidez · Inválido con cónyuge e hijos
 Anexo 18.5.1 LSS · Secciones 4 y 5
 
 Reglas de negocio:
@@ -106,8 +106,8 @@ st.divider()
 st.subheader("👧👦 Hijos")
 n_hijos = st.number_input(
     "¿Cuántos hijos tiene el asegurado?",
-    min_value=4, max_value=10, value=4, step=1,
-    help="Mínimo 4 hijos para este caso actuarial.",
+    min_value=1, max_value=10, value=1, step=1,
+    help="",
 )
 
 # Vista previa del tope antes de capturar hijos
