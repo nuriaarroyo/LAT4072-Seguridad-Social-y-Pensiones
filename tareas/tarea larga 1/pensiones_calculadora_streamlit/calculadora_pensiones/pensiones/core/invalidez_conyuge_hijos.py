@@ -1,319 +1,565 @@
 """
-invalidez_conyuge_hijos.py — Motor actuarial MC10 (CNSF)
-=========================================================
-Replica la hoja de cálculo del Laboratorio MC10:
+invalidez_conyuge_hijos.py
+==========================
+Cálculo actuarial del Monto Constitutivo del Seguro de Invalidez
+para un trabajador inválido con cónyuge e hijos (mínimo cuatro),
+conforme al Anexo 18.5.1 de la LSS — Secciones 4 y 5.
 
-  1.  Historia salarial (sal diario × factor actualización) → Sal Prom Act 500 sem
-  2.  CBIV = 35% × Sal_Prom_Diario  →  CBIV_mensual = CBIV_d × 365/12
-  3.  PMG  = 1.3 × UMA × 30
-  4.  base = max(CBIV_m, PMG)
-  5.  b1(j) = base × (1 + 15% + j×10% + %AA)   [cónyuge vivo,  tope 100% sal]
-      b2(j) = base × (1       + j×10% + %AA)   [cónyuge muerto, tope 100% sal]
-  6.  B_mensual = Σ_k v^k × kpx_inv × [b1(j_k)×kpy_act + b2(j_k)×(1-kpy_act)] × Π kph_act(k)
-      usando qx Activos CNSF para hijos y cónyuge, qx Invalidez 2020 para el inválido
-  7.  PBSI = (1 + INC) × ä_x^inv × B_mensual
-      donde ä_x^inv usa tabla Invalidez Val Act 2020
-  8.  PNSI = PBSI × FACBI
-  9.  MCSI = (PNSI − PV) × (1+a)/(1−b)
+Estructura:
+  Sección 4 — Seguro de Invalidez
+    · Prima básica del seguro de invalidez (PBSI)
+    · Prima del seguro de invalidez para hijos (PSIH)
+    · Prima neta del seguro de invalidez (PNSI)
+    · Monto constitutivo del seguro de invalidez (MCSI)
 
-Nota: Las tablas qx exactas del CNSF son de acceso restringido. El módulo usa
-      tablas Makeham calibradas al valor ä(49,H)=11.81 del Laboratorio MC10.
-      La diferencia en B_mensual (~15%) se debe a las tablas qx de activos.
+  Sección 5 — Seguro de Sobrevivencia
+    · Prima básica del seguro de sobrevivencia (PBSS)
+    · Prima del seguro de invalidez para hijos del sobrevivencia (PSIH_SS)
+    · Prima del finiquito para hijos (PFH)
+    · Prima neta del seguro de sobrevivencia (PNSS)
+    · Monto constitutivo del seguro de sobrevivencia (MCSS)
 
-Valores de referencia MC10:
-  ä_inv(49,H) = 11.81    B_mensual ≈ 384,048
-  PBSI = 5,035,737    PNSI = 5,045,718    MCSI = 5,197,090
+  Monto Constitutivo Total (MCT) = MCSI + MCSS
+
+Referencias:
+  · LSS Arts. 119-145 (invalidez y vida)
+  · Circular Única de Seguros, Anexo 18.5.1
+  · Tablas de mortalidad EMSSA (inválidos) y EMSSAH/M (no inválidos)
 """
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
-from typing import List, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, List, Tuple
 
-# ── Parámetros globales ────────────────────────────────────────────────────────
-TASA_INTERES: float = 0.035        # i anual CNSF
-UMA_DIARIA:   float = 117.31       # UMA vigente
-PMG_FACTOR:   float = 1.3          # PMG = 1.3 × UMA × 30
+# ──────────────────────────────────────────────────────────────────────────────
+# CONSTANTES GENERALES
+# ──────────────────────────────────────────────────────────────────────────────
 
-PCT_CUANTIA_BASICA: float = 0.35
-PCT_CONYUGE:        float = 0.15
-PCT_HIJO:           float = 0.10
-PCT_AYUDA_ASIST:    float = 0.16
+# Tasa de interés técnico anual (CNSF)
+TASA_INTERES: float = 0.035          # 3.5 % anual
 
-INC:       float = 0.11   # recargo asegurador sobre PBSI
-RECARGO_A: float = 0.02   # a: gastos de adquisición
-RECARGO_B: float = 0.01   # b: gastos de administración
-PV:        float = 0.0    # prima única diferida
+# Factor de actualización por inflación (FACBI); se asume 1.0 cuando el
+# salario ya está expresado en pesos corrientes.
+FACBI: float = 1.0
 
-# ── Tablas de mortalidad Makeham ───────────────────────────────────────────────
-# Invalidez Val Act 2020 — calibradas para ä(49,H) = 11.81
-_INV_H = dict(A=0.00169243, B=0.0000838155, c=1.1150)
-_INV_M = dict(A=0.00132700, B=0.0000660800, c=1.1100)
+# Recargos sobre prima neta (gastos de administración + utilidad aseguradora)
+RECARGO_INVALIDEZ: float = 1.09      # 9 %
+RECARGO_SOBREVIVENCIA: float = 1.09  # 9 %
 
-# Activos CNSF (EMSSAH/M) — estimación Makeham (las tablas exactas son restringidas)
-_ACT_H = dict(A=0.000278, B=0.0000226, c=1.1247)
-_ACT_M = dict(A=0.000188, B=0.0000136, c=1.1180)
+# Cuantía básica y asignaciones familiares (Art. 141 y 138 LSS)
+PCT_CUANTIA_BASICA: float = 0.35     # 35 % del salario promedio
+PCT_CONYUGE: float = 0.15            # 15 % asignación cónyuge
+PCT_HIJO: float = 0.10               # 10 % por hijo (≤ 16 / ≤ 25 si estudia)
+PCT_AYUDA_ASIST: float = 0.16        # 16 % ayuda asistencial (promedio IMSS)
 
+# Pensión de viudez tras fallecimiento del inválido (Art. 130-131 LSS): 90 %
+PCT_VIUDEZ: float = 0.90
 
-def _qx(edad: int, p: dict) -> float:
-    mu = p["A"] + p["B"] * (p["c"] ** min(edad, 109))
+# Pensión de orfandad (Art. 135 LSS)
+PCT_ORFANDAD_SENCILLA: float = 0.20  # huérfano de padre o madre
+PCT_ORFANDAD_DOBLE: float = 0.30     # huérfano de padre y madre
+
+# Finiquito orfandad: 3 mensualidades (Art. 136 LSS)
+MESES_FINIQUITO: int = 3
+
+# Edad límite de hijos para pensión de orfandad (con posibilidad hasta 25)
+EDAD_LIMITE_HIJOS_BASE: int = 16
+EDAD_LIMITE_HIJOS_EST: int = 25
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TABLAS DE MORTALIDAD SIMPLIFICADAS (EMSSA / EMSSAH / EMSSAM)
+# Se representan como qx  (prob. de morir entre edad x y x+1).
+# NOTA: En producción deben cargarse desde el Anexo 14.2.4.b CUS.
+# Aquí se usan aproximaciones de la tabla Makeham calibradas a EMSSA/EMSSAH.
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _makeham_qx(edad: int, A: float, B: float, c: float) -> float:
+    """Probabilidad de muerte Makeham: qx ≈ 1 - exp(-(A + B*(c^x - c^(x+1))/(ln c)))."""
+    mu = A + B * (c ** edad)
     return min(1.0, 1.0 - math.exp(-mu))
 
-def qx_inv(edad: int, sexo: str) -> float:
-    return _qx(edad, _INV_H if sexo in ("H", "T") else _INV_M)
 
-def qx_act(edad: int, sexo: str) -> float:
-    return _qx(edad, _ACT_H if sexo == "H" else _ACT_M)
-
-def _kpx(edad: int, sexo: str, fn, k: int) -> float:
-    s = 1.0
-    for t in range(k):
-        if edad + t < 110:
-            s *= 1.0 - fn(edad + t, sexo)
-    return s
-
-def kpx_inv(edad: int, sexo: str, k: int) -> float:
-    return _kpx(edad, sexo, qx_inv, k)
-
-def kpx_act(edad: int, sexo: str, k: int) -> float:
-    return _kpx(edad, sexo, qx_act, k)
+# Parámetros Makeham para cada tabla (calibración académica)
+_PARAMS_INVALIDOS_H = dict(A=0.0010, B=0.00005, c=1.115)   # EMSSA hombres
+_PARAMS_INVALIDOS_M = dict(A=0.0008, B=0.00004, c=1.110)   # EMSSA mujeres
+_PARAMS_SANOS_H     = dict(A=0.0005, B=0.000025, c=1.100)  # EMSSAH hombres
+_PARAMS_SANOS_M     = dict(A=0.0004, B=0.000018, c=1.095)  # EMSSAM mujeres
 
 
-def _v(k: int = 1) -> float:
-    return (1.0 / (1.0 + TASA_INTERES)) ** k
+def qx_invalido(edad: int, sexo: str) -> float:
+    p = _PARAMS_INVALIDOS_H if sexo.upper() in ("H", "M_TRANS") else _PARAMS_INVALIDOS_M
+    return _makeham_qx(edad, **p)
 
 
-# ── Dataclass Hijo ─────────────────────────────────────────────────────────────
+def qx_sano(edad: int, sexo: str) -> float:
+    p = _PARAMS_SANOS_H if sexo.upper() == "H" else _PARAMS_SANOS_M
+    return _makeham_qx(edad, **p)
+
+
+def px_invalido(edad: int, sexo: str) -> float:
+    return 1.0 - qx_invalido(edad, sexo)
+
+
+def px_sano(edad: int, sexo: str) -> float:
+    return 1.0 - qx_sano(edad, sexo)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FUNCIONES ACTUARIALES ELEMENTALES
+# ──────────────────────────────────────────────────────────────────────────────
+
+def v(n: int = 1) -> float:
+    """Factor de descuento: v^n = (1/(1+i))^n."""
+    return (1.0 / (1.0 + TASA_INTERES)) ** n
+
+
+def ax_invalido(edad: int, sexo: str, max_edad: int = 110) -> float:
+    """
+    Anualidad vitalicia anticipada para inválido (tabla EMSSA).
+    ä_x = Σ_{k=0}^{ω-x} v^k · k_p_x^inv
+    """
+    total = 0.0
+    surv = 1.0
+    for k in range(max_edad - edad):
+        total += (v() ** k) * surv
+        surv *= px_invalido(edad + k, sexo)
+    return total
+
+
+def ax_sano(edad: int, sexo: str, max_edad: int = 110) -> float:
+    """Anualidad vitalicia anticipada para persona sana (tabla EMSSAH/M)."""
+    total = 0.0
+    surv = 1.0
+    for k in range(max_edad - edad):
+        total += (v() ** k) * surv
+        surv *= px_sano(edad + k, sexo)
+    return total
+
+
+def ax_n_invalido(edad: int, sexo: str, n: int) -> float:
+    """Anualidad temporal anticipada (n años) para inválido."""
+    total = 0.0
+    surv = 1.0
+    for k in range(n):
+        total += (v() ** k) * surv
+        if edad + k < 110:
+            surv *= px_invalido(edad + k, sexo)
+        else:
+            break
+    return total
+
+
+def ax_n_sano(edad: int, sexo: str, n: int) -> float:
+    """Anualidad temporal anticipada (n años) para persona sana."""
+    total = 0.0
+    surv = 1.0
+    for k in range(n):
+        total += (v() ** k) * surv
+        if edad + k < 110:
+            surv *= px_sano(edad + k, sexo)
+        else:
+            break
+    return total
+
+
+def Ax_invalido(edad: int, sexo: str, max_edad: int = 110) -> float:
+    """
+    Seguro de vida entera pagadero al final del año de muerte (inválido).
+    A_x = Σ_{k=0}^{ω-x-1} v^{k+1} · k_p_x^inv · q_{x+k}^inv
+    """
+    total = 0.0
+    surv = 1.0
+    for k in range(max_edad - edad):
+        q = qx_invalido(edad + k, sexo)
+        total += (v() ** (k + 1)) * surv * q
+        surv *= (1.0 - q)
+    return total
+
+
+def Ax_diferido_invalido(edad: int, sexo: str, diferimiento: int,
+                         max_edad: int = 110) -> float:
+    """
+    Seguro de vida entera con período de diferimiento t años (inválido).
+    Se usa para la prima del seguro de sobrevivencia.
+    """
+    # Sobrevivencia hasta el diferimiento
+    surv_t = 1.0
+    for k in range(diferimiento):
+        surv_t *= px_invalido(edad + k, sexo)
+    # Seguro de vida entera desde la edad diferida
+    return (v() ** diferimiento) * surv_t * Ax_invalido(edad + diferimiento, sexo, max_edad)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CÁLCULO DE SALARIO PROMEDIO (últimas 500 semanas)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def salario_promedio_500_semanas(historial: List[Tuple[float, int]]) -> float:
+    """
+    Calcula el salario diario promedio de las últimas 500 semanas (≈ 9.6 años).
+
+    Parameters
+    ----------
+    historial : list of (salario_diario, semanas)
+        Lista ordenada del más reciente al más antiguo. Cada elemento es
+        (salario_diario_promedio_en_ese_período, número_de_semanas).
+
+    Returns
+    -------
+    float : salario diario promedio ponderado.
+    """
+    semanas_acum = 0
+    suma_ponderada = 0.0
+    for sal_d, sem in historial:
+        sem_disponibles = min(sem, 500 - semanas_acum)
+        suma_ponderada += sal_d * sem_disponibles
+        semanas_acum += sem_disponibles
+        if semanas_acum >= 500:
+            break
+    return suma_ponderada / min(semanas_acum, 500) if semanas_acum > 0 else 0.0
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DATACLASS DE HIJO
+# ──────────────────────────────────────────────────────────────────────────────
+
 @dataclass
 class Hijo:
-    edad:     int
-    sexo:     str  = "H"
-    estudia:  bool = True
-    invalido: bool = False
+    edad: int
+    sexo: str = "H"            # "H" = hombre, "M" = mujer
+    estudia: bool = True       # True → límite 25 años; False → límite 16
+    invalido: bool = False     # True → pensión indefinida (Art. 138 LSS)
 
     @property
     def edad_limite(self) -> int:
-        return 110 if self.invalido else (25 if self.estudia else 16)
+        if self.invalido:
+            return 110          # pensión sin límite de edad
+        return EDAD_LIMITE_HIJOS_EST if self.estudia else EDAD_LIMITE_HIJOS_BASE
 
     @property
     def anios_restantes(self) -> int:
         return max(0, self.edad_limite - self.edad)
 
 
-# ── 1. Salario promedio 500 semanas ───────────────────────────────────────────
-def salario_promedio_500(
-    historia: List[Tuple[float, float]],   # (sal_diario_original, factor_actualizacion)
-    sem_por_anio: float = 52.0,
+# ──────────────────────────────────────────────────────────────────────────────
+# SECCIÓN 4 — SEGURO DE INVALIDEZ
+# ──────────────────────────────────────────────────────────────────────────────
+
+def calcular_pension_invalido(salario_diario_prom: float, n_hijos: int) -> float:
+    """
+    Cuantía mensual de pensión del inválido con cónyuge e hijos (Art. 141, 138 LSS).
+
+    C = S * (CB + AF_conyuge + AF_hijos + AA)
+    donde S = salario mensual promedio (= sal_d * 30).
+    """
+    sal_mensual = salario_diario_prom * 30.0
+    total_pct = PCT_CUANTIA_BASICA + PCT_CONYUGE + n_hijos * PCT_HIJO + PCT_AYUDA_ASIST
+    # Cota máxima: 100 % del salario (Art. 143)
+    total_pct = min(total_pct, 1.0)
+    return sal_mensual * total_pct
+
+
+def pbsi_conyuge_hijos(
+    edad_invalido: int,
+    sexo_invalido: str,
+    pension_mensual: float,
+    hijos: List[Hijo],
 ) -> float:
     """
-    Promedio del salario diario actualizado de las últimas 500 semanas.
-    Los años con salario = 0 NO consumen semanas (no cotizó ese año).
-    Ordenar de más reciente a más antiguo.
+    Prima básica del seguro de invalidez — inválido con cónyuge e hijos.
+    Sección 4a del Anexo 18.5.1.
+
+    PBSI = P_mensual * 12 * FACBI * ä_x^inv
+
+    La pensión mensual ya incluye cuantía básica + asignaciones familiares
+    (cónyuge + hijos) + ayuda asistencial.
     """
-    acum = suma = 0.0
-    for sal, fac in historia:
-        if sal == 0:
-            continue                          # año sin cotización → no consume semanas
-        sal_act = sal * fac
-        disp    = min(sem_por_anio, 500.0 - acum)
-        if disp <= 0:
-            break
-        suma += sal_act * disp
-        acum += disp
-    return suma / acum if acum > 0 else 0.0
+    ax = ax_invalido(edad_invalido, sexo_invalido)
+    pbsi = pension_mensual * 12.0 * FACBI * ax
+    return pbsi
 
 
-# ── 2-4. CBIV, PMG, base, b1/b2 ──────────────────────────────────────────────
-def cbiv_diario(sal_d: float) -> float:
-    return PCT_CUANTIA_BASICA * sal_d
+def psih_invalido(
+    edad_invalido: int,
+    sexo_invalido: str,
+    salario_diario_prom: float,
+    hijos: List[Hijo],
+) -> float:
+    """
+    Prima del seguro de invalidez para hijos (PSIH) — Sección 4b Anexo 18.5.1.
 
-def cbiv_mensual(sal_d: float) -> float:
-    """CBIV mensual = CBIV_diario × 365/12  (convención del lab)."""
-    return cbiv_diario(sal_d) * 365.0 / 12.0
+    Garantiza el pago de pensión a los hijos que sufran invalidez después
+    del cálculo de la PBSI.
 
-def pmg(uma: float = UMA_DIARIA) -> float:
-    return PMG_FACTOR * uma * 30.0
+    PSIH = Σ_i  [10% * C_basica * 12 * FACBI * (ä_{x,n_i}^inv_invalido - ä_{y_i,n_i}^inv_hijo)]
 
-def base_pension(sal_d: float, uma: float = UMA_DIARIA) -> float:
-    return max(cbiv_mensual(sal_d), pmg(uma))
-
-def b1(j: int, sal_d: float, uma: float = UMA_DIARIA) -> float:
-    """Beneficio mensual con cónyuge vivo y j hijos. Tope: 100% del salario mensual."""
-    pct  = 1.0 + PCT_CONYUGE + j * PCT_HIJO + PCT_AYUDA_ASIST
-    tope = sal_d * 365.0 / 12.0
-    return min(base_pension(sal_d, uma) * pct, tope)
-
-def b2(j: int, sal_d: float, uma: float = UMA_DIARIA) -> float:
-    """Beneficio mensual sin cónyuge y j hijos. Tope: 100% del salario mensual."""
-    pct  = 1.0 + j * PCT_HIJO + PCT_AYUDA_ASIST
-    tope = sal_d * 365.0 / 12.0
-    return min(base_pension(sal_d, uma) * pct, tope)
-
-
-# ── 5. ä del inválido ─────────────────────────────────────────────────────────
-def ax_invalido(edad: int, sexo: str) -> float:
-    """Anualidad vitalicia anticipada — tabla Invalidez Val Act 2020."""
+    donde n_i = años restantes del hijo i hasta su edad límite.
+    C_basica = 35% * sal_mensual (cuantía base sin asignaciones).
+    """
+    c_basica_mensual = PCT_CUANTIA_BASICA * salario_diario_prom * 30.0
     total = 0.0
-    for k in range(110 - edad):
-        total += _v(k) * kpx_inv(edad, sexo, k)
+    for hijo in hijos:
+        n = hijo.anios_restantes
+        if n <= 0:
+            continue
+        # anualidad temporal del inválido durante n años
+        ax_n = ax_n_invalido(edad_invalido, sexo_invalido, n)
+        # anualidad temporal del hijo durante n años (sano, pues aún no es inválido)
+        ax_n_hijo = ax_n_sano(hijo.edad, hijo.sexo, n)
+        # diferencia: probabilidad de que el inválido muera antes de que el hijo
+        # alcance su límite, multiplicada por el valor de la anualidad del hijo
+        psih_hijo = PCT_HIJO * c_basica_mensual * 12.0 * FACBI * abs(ax_n - ax_n_hijo)
+        total += psih_hijo
     return total
 
 
-# ── 6. B_mensual conjunta (convoluciones) ─────────────────────────────────────
-def b_mensual_conjunta(
-    edad_x:  int, sexo_x:  str,     # inválido
-    edad_y:  int, sexo_y:  str,     # cónyuge
-    hijos:   List[Hijo],
-    sal_d:   float,
-    uma:     float = UMA_DIARIA,
-    b1_override: dict | None = None,  # dict {j: valor} para usar valores del lab
-    b2_override: dict | None = None,
+def pnsi_conyuge_hijos(pbsi: float, psih: float) -> float:
+    """Prima neta del seguro de invalidez = PBSI + PSIH."""
+    return pbsi + psih
+
+
+def mcsi_conyuge_hijos(pnsi: float) -> float:
+    """
+    Monto constitutivo del seguro de invalidez.
+    MCSI = PNSI * Recargo
+    """
+    return pnsi * RECARGO_INVALIDEZ
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECCIÓN 5 — SEGURO DE SOBREVIVENCIA
+# ──────────────────────────────────────────────────────────────────────────────
+
+def pbss_conyuge_hijos(
+    edad_invalido: int,
+    sexo_invalido: str,
+    edad_conyuge: int,
+    sexo_conyuge: str,
+    pension_mensual_invalido: float,
 ) -> float:
     """
-    B_mensual = Σ_{k=0}^{∞} v^k × kpx_inv × Π_i kpx_hijo_i(k)
-                × [b1(j_k) × kpy + b2(j_k) × (1-kpy)]
+    Prima básica del seguro de sobrevivencia — cónyuge (Sección 5a).
 
-    Los hijos activos en el año k son los que aún tienen derecho a pensión (k < nr_i).
+    Cuando muere el inválido, la viuda/o recibe el 90 % de la pensión base
+    (sin asignaciones familiares, Art. 139).
+
+    PBSS = Σ_{k=0}^{ω_inv - x} [ v^{k+1} * k_p_x^inv * q_{x+k}^inv
+                                   * P_viudez * 12 * FACBI
+                                   * ä_{y+k}^sano ]
+
+    donde P_viudez = 90% * C_basica_mensual.
+    c_basica_mensual = 35% * sal_mensual  (sin asignaciones, Art. 139).
     """
+    # La pensión de viudez es 90 % de la cuantía base (sin asignaciones)
+    # Aproximamos la cuantía base: pension_mensual / (1 + pct_af + aa)
+    factor_total = 1 + PCT_CONYUGE + PCT_AYUDA_ASIST  # sin hijos ya fallecidos
+    c_basica_mensual = pension_mensual_invalido / factor_total
+    p_viudez = PCT_VIUDEZ * c_basica_mensual
+
     total = 0.0
-    for k in range(110 - edad_x):
-        # Mortalidad del inválido
-        sx = kpx_inv(edad_x, sexo_x, k)
-        if sx < 1e-12:
-            break
-
-        # Hijos vigentes en el año k
-        hijos_vivos = [h for h in hijos if k < h.anios_restantes]
-        j_k = len(hijos_vivos)
-
-        # Supervivencia conjunta de los hijos vigentes (tabla activos)
-        sh = 1.0
-        for h in hijos_vivos:
-            sh *= kpx_act(h.edad, h.sexo, k)
-
-        # Supervivencia del cónyuge (tabla activos)
-        sy = kpx_act(edad_y, sexo_y, k)
-
-        # Beneficios con y sin cónyuge
-        if b1_override and j_k in b1_override:
-            b1k = b1_override[j_k]
-        else:
-            b1k = b1(j_k, sal_d, uma)
-
-        if b2_override and j_k in b2_override:
-            b2k = b2_override[j_k]
-        else:
-            b2k = b2(j_k, sal_d, uma)
-
-        ben = b1k * sy + b2k * (1.0 - sy)
-        total += _v(k) * sx * sh * ben
-
+    surv_inv = 1.0
+    max_k = 110 - edad_invalido
+    for k in range(max_k):
+        q_inv = qx_invalido(edad_invalido + k, sexo_invalido)
+        # VP de la anualidad de la viuda/o desde edad (y+k) en adelante
+        ax_conyuge = ax_sano(min(edad_conyuge + k, 109), sexo_conyuge)
+        total += (v() ** (k + 1)) * surv_inv * q_inv * p_viudez * 12.0 * FACBI * ax_conyuge
+        surv_inv *= (1.0 - q_inv)
     return total
 
 
-# ── 7-9. PBSI, PNSI, MCSI ────────────────────────────────────────────────────
-def calcular_pbsi(ax: float, B: float, inc: float = INC) -> float:
-    """PBSI = (1 + INC) × ä_inv × B_mensual."""
-    return (1.0 + inc) * ax * B
-
-def calcular_pnsi(pbsi: float, facbi: float) -> float:
-    """PNSI = PBSI × FACBI."""
-    return pbsi * facbi
-
-def calcular_mcsi(
-    pnsi: float,
-    a: float = RECARGO_A,
-    b: float = RECARGO_B,
-    pv: float = PV,
+def psih_sobrevivencia(
+    edad_invalido: int,
+    sexo_invalido: str,
+    salario_diario_prom: float,
+    hijos: List[Hijo],
+    n_huerfanos_sencillos: int = 0,
+    n_huerfanos_dobles: int = 0,
 ) -> float:
-    """MCSI = (PNSI − PV) × (1+a) / (1−b)."""
-    return (pnsi - pv) * (1.0 + a) / (1.0 - b)
+    """
+    Prima del seguro de invalidez para hijos en el seguro de sobrevivencia
+    (Sección 5b, Anexo 18.5.1).
+
+    Al fallecer el inválido, sus hijos pasan a ser huérfanos y reciben:
+      · Huérfano sencillo (un padre muerto): 20 % C_basica
+      · Huérfano doble  (ambos padres muertos): 30 % C_basica
+
+    La distribución entre beneficiarios se hace según la tabla legal D/S.
+
+    PSIH_SS = Σ_i [ pct_i * C_basica * 12 * FACBI
+                    * Σ_{k=0}^{n_i} v^k * k_p_x^inv * ... ]
+    """
+    c_basica_mensual = PCT_CUANTIA_BASICA * salario_diario_prom * 30.0
+    total = 0.0
+    # Para cada hijo activo, calcular la prima de orfandad tras muerte del inválido
+    for hijo in hijos:
+        n = hijo.anios_restantes
+        if n <= 0:
+            continue
+        # Suma esperada de VP de la pensión de orfandad desde la muerte del inválido
+        contrib = 0.0
+        surv_inv = 1.0
+        for k in range(min(n, 110 - edad_invalido)):
+            q_inv = qx_invalido(edad_invalido + k, sexo_invalido)
+            # años restantes del hijo en el momento k
+            n_restante = n - k
+            if n_restante <= 0:
+                break
+            # anualidad del hijo desde su edad actual + k durante n_restante años
+            ax_hijo = ax_n_sano(min(hijo.edad + k, 109), hijo.sexo, n_restante)
+            # pct de orfandad: sencilla por defecto (el otro progenitor vivo)
+            pct_orf = PCT_ORFANDAD_SENCILLA
+            contrib += (v() ** (k + 1)) * surv_inv * q_inv * pct_orf * c_basica_mensual * 12.0 * FACBI * ax_hijo
+            surv_inv *= (1.0 - q_inv)
+        total += contrib
+    return total
 
 
-# ── API pública ────────────────────────────────────────────────────────────────
-def calcular_monto_constitutivo(
+def pfh_hijos(
+    edad_invalido: int,
+    sexo_invalido: str,
+    salario_diario_prom: float,
+    hijos: List[Hijo],
+) -> float:
+    """
+    Prima del finiquito para hijos (PFH) — Sección 5c, Art. 136 LSS.
+
+    Al extinguirse la pensión de orfandad (por edad límite), se pagan 3
+    mensualidades de finiquito.
+
+    PFH = Σ_i [ 3 * P_orfandad_i * v^{n_i} * n_i_p_x^inv * n_i_p_{y_i}^sano ]
+    """
+    c_basica_mensual = PCT_CUANTIA_BASICA * salario_diario_prom * 30.0
+    total = 0.0
+    for hijo in hijos:
+        n = hijo.anios_restantes
+        if n <= 0:
+            continue
+        # Sobrevivencia del inválido hasta n años
+        surv_inv = 1.0
+        for k in range(min(n, 110 - edad_invalido)):
+            surv_inv *= px_invalido(edad_invalido + k, sexo_invalido)
+        # Sobrevivencia del hijo hasta n años
+        surv_hijo = 1.0
+        for k in range(min(n, 110 - hijo.edad)):
+            surv_hijo *= px_sano(hijo.edad + k, hijo.sexo)
+        # Finiquito: 3 mensualidades de orfandad sencilla
+        p_finiquito = MESES_FINIQUITO * PCT_ORFANDAD_SENCILLA * c_basica_mensual
+        total += p_finiquito * (v() ** n) * surv_inv * surv_hijo * FACBI
+    return total
+
+
+def pnss_conyuge_hijos(pbss: float, psih_ss: float, pfh: float) -> float:
+    """Prima neta del seguro de sobrevivencia = PBSS + PSIH_SS + PFH."""
+    return pbss + psih_ss + pfh
+
+
+def mcss_conyuge_hijos(pnss: float) -> float:
+    """
+    Monto constitutivo del seguro de sobrevivencia.
+    MCSS = PNSS * Recargo
+    """
+    return pnss * RECARGO_SOBREVIVENCIA
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FUNCIÓN PRINCIPAL — cálculo completo
+# ──────────────────────────────────────────────────────────────────────────────
+
+def calcular_monto_constitutivo_invalido(
     *,
-    edad_invalido:  int,
-    sexo_invalido:  str,
-    edad_conyuge:   int,
-    sexo_conyuge:   str,
-    hijos:          List[Hijo],
-    sal_prom_diario: float,
-    uma_diaria:     float = UMA_DIARIA,
-    inc:            float = INC,
-    facbi:          float = 1.0,
-    a:              float = RECARGO_A,
-    b_rec:          float = RECARGO_B,
-    pv:             float = PV,
-    b1_override:    dict | None = None,  # valores del lab para b1(j)
-    b2_override:    dict | None = None,  # valores del lab para b2(j)
+    edad_invalido: int,
+    sexo_invalido: str,
+    edad_conyuge: int,
+    sexo_conyuge: str,
+    hijos: List[Hijo],
+    salario_diario_prom: float,
 ) -> dict:
-    """Calcula paso a paso PBSI → PNSI → MCSI (Laboratorio MC10)."""
-    if len(hijos) < 1:
-        raise ValueError("Se requiere al menos 1 hijo.")
+    """
+    Calcula el Monto Constitutivo Total para un inválido con cónyuge e hijos.
 
-    n         = len(hijos)
-    sal_m_365 = sal_prom_diario * 365.0 / 12.0   # salario mensual convención lab
-    cb_d      = cbiv_diario(sal_prom_diario)
-    cb_m      = cbiv_mensual(sal_prom_diario)
-    pmg_m     = pmg(uma_diaria)
-    base_m    = max(cb_m, pmg_m)
+    Parameters
+    ----------
+    edad_invalido      : edad actual del asegurado inválido
+    sexo_invalido      : "H" hombre | "M" mujer | "M_TRANS" mujer transgénero
+    edad_conyuge       : edad del cónyuge/concubina(o)
+    sexo_conyuge       : "H" | "M"
+    hijos              : lista de objetos Hijo (mínimo 4)
+    salario_diario_prom: salario diario promedio de las últimas 500 semanas
 
-    # Tabla b1/b2
-    tabla_b = {}
-    for j in range(n + 1):
-        bv1 = b1_override[j] if (b1_override and j in b1_override) else b1(j, sal_prom_diario, uma_diaria)
-        bv2 = b2_override[j] if (b2_override and j in b2_override) else b2(j, sal_prom_diario, uma_diaria)
-        tabla_b[j] = {"b1": round(bv1, 2), "b2": round(bv2, 2)}
+    Returns
+    -------
+    dict con todos los componentes del monto constitutivo.
+    """
+    n_hijos = len(hijos)
+    if n_hijos < 4:
+        raise ValueError(f"Se requieren al menos 4 hijos; se proporcionaron {n_hijos}.")
 
-    # Cálculo actuarial
-    ax  = ax_invalido(edad_invalido, sexo_invalido)
-    B   = b_mensual_conjunta(
+    pension_mensual = calcular_pension_invalido(salario_diario_prom, n_hijos)
+
+    # ── Sección 4: Seguro de Invalidez ────────────────────────────────────────
+    pbsi = pbsi_conyuge_hijos(edad_invalido, sexo_invalido, pension_mensual, hijos)
+    psih = psih_invalido(edad_invalido, sexo_invalido, salario_diario_prom, hijos)
+    pnsi = pnsi_conyuge_hijos(pbsi, psih)
+    mcsi = mcsi_conyuge_hijos(pnsi)
+
+    # ── Sección 5: Seguro de Sobrevivencia ────────────────────────────────────
+    pbss = pbss_conyuge_hijos(
         edad_invalido, sexo_invalido,
-        edad_conyuge,  sexo_conyuge,
-        hijos, sal_prom_diario, uma_diaria,
-        b1_override, b2_override,
+        edad_conyuge, sexo_conyuge,
+        pension_mensual,
     )
-    ax_cony = sum(_v(k) * kpx_act(edad_conyuge, sexo_conyuge, k)
-                  for k in range(110 - edad_conyuge))
+    psih_ss = psih_sobrevivencia(
+        edad_invalido, sexo_invalido,
+        salario_diario_prom, hijos,
+    )
+    pfh = pfh_hijos(edad_invalido, sexo_invalido, salario_diario_prom, hijos)
+    pnss = pnss_conyuge_hijos(pbss, psih_ss, pfh)
+    mcss = mcss_conyuge_hijos(pnss)
 
-    pbsi = calcular_pbsi(ax, B, inc)
-    pnsi = calcular_pnsi(pbsi, facbi)
-    mcsi = calcular_mcsi(pnsi, a, b_rec, pv)
+    # ── Totales ───────────────────────────────────────────────────────────────
+    mct = mcsi + mcss
+
+    # ── Anualidades para reporte ───────────────────────────────────────────────
+    ax_inv = ax_invalido(edad_invalido, sexo_invalido)
+    ax_cony = ax_sano(edad_conyuge, sexo_conyuge)
 
     return {
-        # Entradas
-        "edad_invalido":    edad_invalido,
-        "sexo_invalido":    sexo_invalido,
-        "edad_conyuge":     edad_conyuge,
-        "sexo_conyuge":     sexo_conyuge,
-        "n_hijos":          n,
-        # Salario
-        "sal_prom_diario":  round(sal_prom_diario, 4),
-        "sal_prom_mensual": round(sal_m_365, 2),
-        # CBIV y PMG
-        "cbiv_diario":      round(cb_d, 4),
-        "cbiv_mensual":     round(cb_m, 2),
-        "pmg_mensual":      round(pmg_m, 2),
-        "base_mensual":     round(base_m, 2),
-        # b1/b2
-        "tabla_b":          tabla_b,
-        # Intermedios actuariales
-        "ax_invalido":      round(ax, 6),
-        "ax_conyuge":       round(ax_cony, 6),
-        "b_mensual":        round(B, 2),
-        # Primas
-        "inc":              inc,
-        "pbsi":             round(pbsi, 2),
-        "facbi":            facbi,
-        "pnsi":             round(pnsi, 2),
-        "a":                a,
-        "b_rec":            b_rec,
-        "pv":               pv,
-        "mcsi":             round(mcsi, 2),
-        # Parámetros
-        "tasa_interes":     TASA_INTERES,
-        "uma_diaria":       uma_diaria,
+        # Datos de entrada
+        "edad_invalido": edad_invalido,
+        "sexo_invalido": sexo_invalido,
+        "edad_conyuge": edad_conyuge,
+        "sexo_conyuge": sexo_conyuge,
+        "n_hijos": n_hijos,
+        "salario_diario_prom": round(salario_diario_prom, 4),
+        "salario_mensual_prom": round(salario_diario_prom * 30, 2),
+        # Pensión
+        "pct_total_pension": round(
+            min(PCT_CUANTIA_BASICA + PCT_CONYUGE + n_hijos * PCT_HIJO + PCT_AYUDA_ASIST, 1.0), 4
+        ),
+        "pension_mensual": round(pension_mensual, 2),
+        "pension_anual": round(pension_mensual * 12, 2),
+        # Anualidades
+        "ax_invalido": round(ax_inv, 6),
+        "ax_conyuge": round(ax_cony, 6),
+        # Sección 4
+        "pbsi": round(pbsi, 2),
+        "psih": round(psih, 2),
+        "pnsi": round(pnsi, 2),
+        "mcsi": round(mcsi, 2),
+        # Sección 5
+        "pbss": round(pbss, 2),
+        "psih_ss": round(psih_ss, 2),
+        "pfh": round(pfh, 2),
+        "pnss": round(pnss, 2),
+        "mcss": round(mcss, 2),
+        # Total
+        "mct": round(mct, 2),
+        # Parámetros usados
+        "tasa_interes": TASA_INTERES,
+        "recargo_invalidez": RECARGO_INVALIDEZ,
+        "recargo_sobrevivencia": RECARGO_SOBREVIVENCIA,
+        "facbi": FACBI,
     }
-
