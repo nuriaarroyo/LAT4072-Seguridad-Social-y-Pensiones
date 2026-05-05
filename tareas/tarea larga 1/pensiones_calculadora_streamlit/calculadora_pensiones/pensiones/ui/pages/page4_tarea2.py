@@ -63,7 +63,7 @@ Anexo 18.5.1 de la Ley del Seguro Social.
 **MCT = MCSI + MCSS**
 """
         )
-
+"""
     # ── Sidebar: parámetros globales ──────────────────────────────────────────
     with st.sidebar:
         st.header("⚙️ Parámetros actuariales")
@@ -94,7 +94,7 @@ Anexo 18.5.1 de la Ley del Seguro Social.
     _core.RECARGO_SOBREVIVENCIA = recargo_sob
     _core.FACBI = facbi
     _core.PCT_AYUDA_ASIST = pct_aa
-
+"""
     # ── Datos del inválido ─────────────────────────────────────────────────────
     st.header("👤 Datos del asegurado inválido")
     col1, col2, col3 = st.columns(3)
@@ -190,7 +190,7 @@ Anexo 18.5.1 de la Ley del Seguro Social.
     )
 
     # ── Métricas principales ───────────────────────────────────────────────────
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3, m4 = st.columns(2)
     m1.metric("Pensión mensual", f"${r['pension_mensual']:,.2f}")
     m2.metric("MC Seg. Invalidez (MCSI)", f"${r['mcsi']:,.2f}")
     m3.metric("MC Seg. Sobrevivencia (MCSS)", f"${r['mcss']:,.2f}")
