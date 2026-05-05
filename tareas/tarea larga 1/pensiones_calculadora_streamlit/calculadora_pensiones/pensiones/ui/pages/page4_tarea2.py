@@ -63,38 +63,38 @@ Anexo 18.5.1 de la Ley del Seguro Social.
 **MCT = MCSI + MCSS**
 """
         )
-"""
-    # ── Sidebar: parámetros globales ──────────────────────────────────────────
-    with st.sidebar:
-        st.header("⚙️ Parámetros actuariales")
-        tasa_i = st.number_input(
-            "Tasa de interés técnico anual (%)",
-            min_value=0.0, max_value=20.0, value=TASA_INTERES * 100, step=0.1,
-        ) / 100.0
-        recargo_inv = st.number_input(
-            "Recargo seguro de invalidez", min_value=1.0, max_value=2.0,
-            value=RECARGO_INVALIDEZ, step=0.01,
-        )
-        recargo_sob = st.number_input(
-            "Recargo seguro de sobrevivencia", min_value=1.0, max_value=2.0,
-            value=RECARGO_SOBREVIVENCIA, step=0.01,
-        )
-        facbi = st.number_input(
-            "FACBI (factor de actualización por inflación)",
-            min_value=0.5, max_value=5.0, value=FACBI, step=0.01,
-        )
-        pct_aa = st.slider(
-            "Ayuda asistencial (%)", min_value=0, max_value=20, value=16, step=1,
-        ) / 100.0
 
-    # Sobreescribir constantes en tiempo de ejecución
-    import pensiones.core.invalidez_conyuge_hijos as _core
-    _core.TASA_INTERES = tasa_i
-    _core.RECARGO_INVALIDEZ = recargo_inv
-    _core.RECARGO_SOBREVIVENCIA = recargo_sob
-    _core.FACBI = facbi
-    _core.PCT_AYUDA_ASIST = pct_aa
-"""
+    # ── Sidebar: parámetros globales ──────────────────────────────────────────
+#    with st.sidebar:
+#        st.header("⚙️ Parámetros actuariales")
+#        tasa_i = st.number_input(
+#            "Tasa de interés técnico anual (%)",
+#            min_value=0.0, max_value=20.0, value=TASA_INTERES * 100, step=0.1,
+#        ) / 100.0
+#        recargo_inv = st.number_input(
+#            "Recargo seguro de invalidez", min_value=1.0, max_value=2.0,
+#            value=RECARGO_INVALIDEZ, step=0.01,
+#        )
+#        recargo_sob = st.number_input(
+#            "Recargo seguro de sobrevivencia", min_value=1.0, max_value=2.0,
+#            value=RECARGO_SOBREVIVENCIA, step=0.01,
+#        )
+#        facbi = st.number_input(
+#            "FACBI (factor de actualización por inflación)",
+#            min_value=0.5, max_value=5.0, value=FACBI, step=0.01,
+#        )
+#        pct_aa = st.slider(
+#            "Ayuda asistencial (%)", min_value=0, max_value=20, value=16, step=1,
+#        ) / 100.0
+#
+#    # Sobreescribir constantes en tiempo de ejecución
+#    import pensiones.core.invalidez_conyuge_hijos as _core
+#    _core.TASA_INTERES = tasa_i
+#    _core.RECARGO_INVALIDEZ = recargo_inv
+#    _core.RECARGO_SOBREVIVENCIA = recargo_sob
+#    _core.FACBI = facbi
+#    _core.PCT_AYUDA_ASIST = pct_aa
+
     # ── Datos del inválido ─────────────────────────────────────────────────────
     st.header("👤 Datos del asegurado inválido")
     col1, col2, col3 = st.columns(3)
