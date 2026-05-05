@@ -35,7 +35,7 @@ if section.startswith("II)"):
     render_lss1997()
 elif section.startswith("IV)"):
     render_lss1973()
-elif section.startswith("V)"):
+else section.startswith("V)"):
     render_invalidez()
 
 st.markdown("---")
