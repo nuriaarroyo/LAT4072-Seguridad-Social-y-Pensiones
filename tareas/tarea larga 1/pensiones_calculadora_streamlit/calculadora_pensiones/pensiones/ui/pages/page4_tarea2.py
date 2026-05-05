@@ -132,7 +132,6 @@ Anexo 18.5.1 de la Ley del Seguro Social.
 
     # ── Datos de los hijos ─────────────────────────────────────────────────────
     st.header("👧👦 Datos de los hijos")
-    st.caption("Mínimo 4 hijos requeridos conforme al caso analizado.")
 
     n_hijos = st.number_input(
         "Número de hijos a capturar", min_value=1, max_value=10, value=4, step=1
