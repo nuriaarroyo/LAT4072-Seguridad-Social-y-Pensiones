@@ -35,8 +35,9 @@ if section.startswith("II)"):
     render_lss1997()
 elif section.startswith("IV)"):
     render_lss1973()
-else #section.startswith("V)"):
+elif section.startswith("V)"):
     render_invalidez()
+
 
 st.markdown("---")
 st.caption("Tip: llena las tablas legales en `pensiones/data/` y ajusta las funciones en `pensiones/core/`.")
