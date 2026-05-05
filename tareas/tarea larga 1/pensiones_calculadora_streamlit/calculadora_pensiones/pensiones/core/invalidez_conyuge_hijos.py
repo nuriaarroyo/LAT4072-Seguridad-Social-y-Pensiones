@@ -493,9 +493,9 @@ def calcular_monto_constitutivo_invalido(
     -------
     dict con todos los componentes del monto constitutivo.
     """
-    #n_hijos = len(hijos)
-    #if n_hijos < 4:
-    #   raise ValueError(f"Se requieren al menos 4 hijos; se proporcionaron {n_hijos}.")
+    n_hijos = len(hijos)
+    if n_hijos < 0:
+       raise ValueError(f"Se requieren al menos 1 hijo para este tipo de pensión.")
 
     pension_mensual = calcular_pension_invalido(salario_diario_prom, n_hijos)
 
