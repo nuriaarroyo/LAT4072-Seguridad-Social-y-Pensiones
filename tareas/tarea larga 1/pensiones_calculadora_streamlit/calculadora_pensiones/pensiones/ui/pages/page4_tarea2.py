@@ -334,5 +334,5 @@ Anexo 18.5.1 de la Ley del Seguro Social.
         )
 
 
-if __name__ == "__main__":
-    render()
+#if __name__ == "__main__":
+ #   render()
