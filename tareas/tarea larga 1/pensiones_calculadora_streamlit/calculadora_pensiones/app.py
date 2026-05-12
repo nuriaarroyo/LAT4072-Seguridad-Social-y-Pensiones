@@ -5,6 +5,9 @@ import streamlit as st
 #from pensiones.ui.pages.page1_isr_ss import render as render_isr_ss
 from pensiones.ui.pages.page2_lss1997 import render as render_lss1997
 from pensiones.ui.pages.page3_lss1973 import render as render_lss1973
+### TAREA 2
+from pensiones.ui.pages.page4_tarea2 import render as render_invalidez
+
 
 st.set_page_config(
     page_title="Calculadora de Pensiones",
@@ -20,6 +23,7 @@ section = st.sidebar.radio(
         #"I) ISR 2026 + SS (LSS 1997) + INFONAVIT",
         "II) LSS 1997 — Tasa de reemplazo",
         "IV) LSS 1973 — Pensión y RR (60–65)",
+        "V) Tarea 2 — Invalidez con hijos",
     ],
 )
 
@@ -29,8 +33,11 @@ st.sidebar.code("pensiones/core\n pensiones/data\n plots/")
 
 if section.startswith("II)"):
     render_lss1997()
-else:
+elif section.startswith("IV)"):
     render_lss1973()
+elif section.startswith("V)"):
+    render_invalidez()
+
 
 st.markdown("---")
 st.caption("Tip: llena las tablas legales en `pensiones/data/` y ajusta las funciones en `pensiones/core/`.")
