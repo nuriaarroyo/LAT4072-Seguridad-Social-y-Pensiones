@@ -1,0 +1,341 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+\definecolor{UdiGreen}{RGB}{31,92,78}
+\definecolor{UdiBlue}{RGB}{30,68,118}
+\definecolor{SoftGray}{RGB}{245,247,250}
+\setbeamercolor{structure}{fg=UdiGreen}
+\setbeamercolor{frametitle}{fg=white,bg=UdiGreen}
+\setbeamercolor{title}{fg=white,bg=UdiGreen}
+
+\title[SeLFIES en UDIS]{Adaptaci\'on de SeLFIES/RSB a UDIS}
+\subtitle{Calculadora para estimar bonos de retiro y costo por edad}
+\author{LAT4072 Seguridad Social y Pensiones}
+\date{Datos de mercado: 12 de mayo de 2026}
+
+\newcommand{\udis}{\textsc{UDIS}}
+\newcommand{\mxn}{\textsc{MXN}}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Objetivo ejecutivo}
+  \begin{block}{Pregunta central}
+    \centering
+    \large ?`Cuantos bonos de retiro debe comprar una persona para asegurar una pension real objetivo?
+  \end{block}
+  \vspace{0.4cm}
+  \begin{itemize}
+    \item Adaptar el instrumento SeLFIES/RSB del articulo de Merton y Muralidhar a una unidad real mexicana: \udis.
+    \item Usar UDIBONOS como proxy de la curva real de descuento.
+    \item Calcular el numero de bonos y el costo actual para cualquier edad de entrada antes del retiro.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Idea del articulo}
+  \begin{columns}[T]
+    \begin{column}{0.53\textwidth}
+      \begin{itemize}
+        \item El problema no es solo acumular riqueza: es asegurar ingreso real durante el retiro.
+        \item El articulo propone SeLFIES: \emph{Standard-of-Living indexed, Forward-starting, Income-only Securities}.
+        \item El bono empieza a pagar al retiro, paga solo cupones y no requiere reinvertir pagos durante la etapa laboral.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Mensaje clave}
+        El instrumento convierte una meta compleja de ahorro en una unidad simple:
+        \[
+          N = \frac{B}{c}
+        \]
+        donde $B$ es el ingreso anual objetivo y $c$ es el cupon por bono.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Diseno del instrumento}
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm,y=0.8cm]
+    \draw[->,thick] (0,0) -- (11.5,0) node[right]{tiempo};
+    \draw[UdiBlue,very thick] (0,0.15) -- (5.2,0.15);
+    \node[UdiBlue] at (2.6,0.55) {acumulacion};
+    \draw[UdiGreen,very thick] (5.5,0.15) -- (10.7,0.15);
+    \node[UdiGreen] at (8.2,0.55) {retiro};
+    \draw[dashed] (5.4,-0.25) -- (5.4,2.8);
+    \node[below] at (5.4,-0.25) {edad 65};
+    \foreach \x in {5.6,6.1,...,10.2} {
+      \draw[UdiGreen,thick] (\x,0) -- (\x,1.3);
+    }
+    \node[align=center] at (8,2.2) {cupones reales\\durante 20 anos};
+    \draw[thick,red!70!black] (0.8,0) -- (0.8,-1.2);
+    \node[align=center,red!70!black] at (1.9,-1.0) {precio\\hoy};
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item \textbf{Forward-starting:} no paga antes del retiro.
+    \item \textbf{Income-only:} entrega cupones, sin principal final.
+    \item \textbf{Real:} los pagos se expresan en una unidad que mantiene poder adquisitivo.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Adaptacion a Mexico}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Articulo}
+        Indexacion ideal al consumo per capita para cubrir riesgo de estandar de vida.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Implementacion}
+        Pagos denominados en \udis. Esto cubre inflacion, pero no necesariamente crecimiento del estandar de vida.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.45cm}
+  \begin{itemize}
+    \item Se usa la UDI como unidad real de cuenta.
+    \item Se usa la curva de UDIBONOS como aproximacion de tasas reales mexicanas.
+    \item La app permite agregar crecimiento real adicional $g$ como sensibilidad.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Datos usados}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+      \begin{table}
+      \centering
+      \begin{tabular}{rrrr}
+        \toprule
+        Plazo & Precio & Tasa & Tasa decimal \\
+        \midrule
+        3 anos  & 887.17 & 4.02\% & 0.0402 \\
+        10 anos & 851.87 & 4.61\% & 0.0461 \\
+        30 anos & 797.23 & 4.65\% & 0.0465 \\
+        \bottomrule
+      \end{tabular}
+      \end{table}
+    \end{column}
+    \begin{column}{0.37\textwidth}
+      \begin{block}{UDI}
+        \centering
+        Valor UDI usado:
+        \[
+          8.838416\ \mxn
+        \]
+      \end{block}
+      \begin{itemize}
+        \item Fecha de captura: 12-may-2026.
+        \item Interpolacion lineal entre nodos.
+        \item Extrapolacion plana despues de 30 anos.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Supuestos del caso base}
+  \begin{table}
+  \centering
+  \begin{tabular}{ll}
+    \toprule
+    Supuesto & Valor base \\
+    \midrule
+    Pension anual objetivo & 72,000 \udis \\
+    Cupon anual por bono & 5 \udis \\
+    Frecuencia de pagos modelada & Anual \\
+    Edad de retiro & 65 anos \\
+    Periodo de pago & 20 anos \\
+    Primer pago & Al cumplir edad de retiro \\
+    Capitalizacion & Anual \\
+    Crecimiento real adicional $g$ & 0.0\% \\
+    Rango de edades calculado & 16 a 55 anos, editable en la app \\
+    \bottomrule
+  \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}{Modelo de valuacion}
+  Para una persona de edad $x$, con retiro a edad $R$, los pagos se modelan con frecuencia \textbf{anual}:
+  \[
+  \begin{aligned}
+    n &= R - x
+    &\qquad
+    N &= \frac{B}{c} \\
+    P_x &= \sum_{j=0}^{L-1} c(1+g)^j \cdot v(n+j)
+    &\qquad
+    v(t) &= \frac{1}{(1+r(t))^t} \\
+    C_x &= N \cdot P_x
+  \end{aligned}
+  \]
+  \begin{block}{Interpretacion}
+    \begin{itemize}
+      \item Cada flujo $c(1+g)^j$ representa el cupon de un ano de retiro.
+      \item La edad no cambia el numero de bonos; cambia el precio hoy, porque los pagos quedan mas cerca o mas lejos.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Resultado principal: bonos requeridos}
+  \begin{center}
+    \Huge 14,400 bonos
+  \end{center}
+  \vspace{0.2cm}
+  \[
+    \frac{72{,}000\ \udis}{5\ \udis\ \text{por bono}} = 14{,}400
+  \]
+  \vspace{0.3cm}
+  \begin{itemize}
+    \item Este numero es el mismo para cualquier edad.
+    \item Lo que cambia con la edad es el costo de comprar hoy los flujos futuros.
+    \item La app permite cambiar el cupon; si el cupon fuera 1 UDI, se requeririan 72,000 bonos.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Costo por edad}
+  \begin{center}
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=0.86\textwidth,
+      height=0.55\textheight,
+      xlabel={Edad actual},
+      ylabel={Costo total, millones de pesos},
+      ymin=0,
+      ymax=6,
+      xmin=16,
+      xmax=55,
+      grid=major,
+      axis line style={gray!70},
+      tick label style={font=\small},
+      label style={font=\small},
+      line width=1pt,
+      mark size=2pt
+    ]
+      \addplot[color=UdiGreen,mark=*] coordinates {
+        (16,0.922) (20,1.106) (25,1.388) (30,1.742)
+        (35,2.187) (40,2.746) (45,3.451) (50,4.336) (55,5.447)
+      };
+    \end{axis}
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.15cm}
+  \begin{block}{Lectura}
+    Empezar tarde encarece la misma pension objetivo: a 55 anos cuesta casi 5.9 veces lo que a 16 anos.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Resultados seleccionados}
+  \begin{table}
+  \centering
+  \small
+  \begin{tabular}{rrrrr}
+    \toprule
+    Edad & Anos al retiro & Precio/bono & Costo total & Costo total \\
+    & & \udis & \udis & \mxn \\
+    \midrule
+    16 & 49 & 7.25 & 104,335 & 922,159 \\
+    25 & 40 & 10.91 & 157,067 & 1,388,222 \\
+    35 & 30 & 17.18 & 247,444 & 2,187,012 \\
+    45 & 20 & 27.11 & 390,434 & 3,450,817 \\
+    55 & 10 & 42.80 & 616,296 & 5,447,078 \\
+    \bottomrule
+  \end{tabular}
+  \end{table}
+  \begin{itemize}
+    \item Todos los renglones compran la misma pension: 72,000 \udis{} al ano.
+    \item El costo sube porque hay menos anos de descuento antes del primer pago.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Implementacion de la calculadora}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Datos}
+        \begin{itemize}
+          \item \texttt{curva\_original\_udibonos.csv}
+          \item \texttt{curva\_real\_udis.csv}
+          \item \texttt{valor\_udi.csv}
+        \end{itemize}
+      \end{block}
+      \begin{block}{Script de curva}
+        \texttt{calcular\_curva\_udibonos.py} convierte tasas porcentuales a decimales y genera la curva real usada por la app.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Motor}
+        \texttt{selfies\_calculator.py}
+        \begin{itemize}
+          \item valida curva;
+          \item interpola tasas;
+          \item descuenta flujos;
+          \item calcula bonos y costo por edad.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Interfaz}
+        \texttt{app.py} permite cambiar edades, retiro, cupon, pension, tasa de crecimiento real y valor UDI.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Consistencia con el articulo}
+  \begin{table}
+  \centering
+  \small
+  \begin{tabular}{p{0.32\textwidth}p{0.28\textwidth}p{0.30\textwidth}}
+    \toprule
+    Elemento & Articulo & Adaptacion en UDIS \\
+    \midrule
+    Inicio de pagos & Desde el retiro & Desde edad 65 \\
+    Tipo de pago & Cupon real & Cupon en UDIS \\
+    Principal final & No & No \\
+    Plazo de retiro & Ejemplo de 20 anos & 20 anos base, editable \\
+    Indexacion & Consumo per capita & UDI; $g$ opcional para sensibilidad \\
+    Numero de bonos & Ingreso/cupon & 72,000/5 = 14,400 \\
+    \bottomrule
+  \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}{Limitaciones y extensiones}
+  \begin{itemize}
+    \item \textbf{Estandar de vida:} UDIS protegen inflacion, pero no el crecimiento del consumo per capita.
+    \item \textbf{Longevidad:} la version base paga por plazo fijo; no es una renta vitalicia actuarial.
+    \item \textbf{Curva:} solo hay nodos 3, 10 y 30 anos; se interpola y se extrapola plano para horizontes largos.
+    \item \textbf{Mercado:} los precios observados son de UDIBONOS existentes; un SeLFIES real tendria precio de mercado propio.
+  \end{itemize}
+  \vspace{0.2cm}
+  \begin{block}{Siguiente mejora natural}
+    Incorporar una curva con mas nodos, sensibilidad de tasas y una opcion actuarial con probabilidades de supervivencia.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Conclusiones}
+  \begin{enumerate}
+    \item La adaptacion conserva la intuicion central de SeLFIES: medir retiro como ingreso real, no como monto acumulado.
+    \item Con el caso base se requieren 14,400 bonos para comprar una pension de 72,000 \udis{} al ano.
+    \item El costo presente depende fuertemente de la edad: comprar antes reduce mucho el costo actual.
+    \item La implementacion es flexible: permite evaluar cualquier edad antes del retiro y ajustar supuestos clave.
+  \end{enumerate}
+  \vspace{0.35cm}
+  \begin{center}
+    \large La herramienta convierte la meta de pension en una cantidad concreta de bonos a comprar.
+  \end{center}
+\end{frame}
+
+\end{document}
